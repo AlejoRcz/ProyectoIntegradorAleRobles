@@ -7,14 +7,28 @@ const userSchema = new mongoose.Schema({
   passwordHash: { type: String, required: true },
 
   role: { type: String, enum: ["admin", "chef", "user"], default: "user" },
-
-  avatarUrl: String,
-  biography: String,
-  country: String,
+  profileImage: {
+        type: String, // URL de imagen
+        default: ""
+  },
+  country: {
+        type: String,
+        default: ""
+  },
+  bio: {
+        type: String,
+        default: ""
+  },
+  interests: {
+        type: String,
+        default: ""
+  },
 
   followers: [{ type: mongoose.Schema.Types.ObjectId, ref: "Usuario" }],
   following: [{ type: mongoose.Schema.Types.ObjectId, ref: "Usuario" }],
-  favorites: [{ type: mongoose.Schema.Types.ObjectId, ref: "Receta" }]
-}, { timestamps: true });
+},
+{
+    timestamps: true
+});
 
 module.exports = mongoose.model("Usuario", userSchema);
