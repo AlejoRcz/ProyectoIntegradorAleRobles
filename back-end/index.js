@@ -21,7 +21,7 @@ mongoose.connect(process.env.MONGODB_URI)
     .catch(error => console.log('Error al conectarse con MongoDB: ', error));
 
 // Rutas
-
+app.use('/api/auth', require('./routes/autenticacion-route'));
 
 app.get('/', (req,res)=> {
     res.send('Servidor en funcionamiento - Proyecto Gestión Culinaria');
