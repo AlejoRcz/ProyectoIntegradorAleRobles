@@ -1,0 +1,28 @@
+{
+  "name": "proyectointegradoralerobles",
+  "version": "1.0.0",
+  "description": "Este proyecto busca solventar el desarrollo de una plataforma digital colaborativa para chefs y usuarios amantes de la gatronomía. Esta página va a buscar ofrecer diferentes medios y herramientas que enriquezcan la comunidad de usuarios y expertos, al brindar la posibilidad de acceder a recetas detalladas y distribuidas a interés del usuario, además de permitir compartir obras personales con los demás usuarios.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/AlejoRcz/ProyectoIntegradorAleRobles.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/AlejoRcz/ProyectoIntegradorAleRobles/issues"
+  },
+  "homepage": "https://github.com/AlejoRcz/ProyectoIntegradorAleRobles#readme",
+  "dependencies": {
+    "body-parser": "^2.2.1",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.3",
+    "express": "^5.1.0",
+    "mongoose": "^9.0.0"
+  }
+}

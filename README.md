@@ -1,5 +1,6 @@
 # ProyectoIntegradorAleRobles
 # Plataforma Web Colaborativa - Gestión Culinaria
+# Nombre del Sistema: RoblesGastroLab
 
 ## 📝 Descripción del proyecto
 Este proyecto busca solventar el desarrollo de una plataforma digital colaborativa para chefs y usuarios amantes de la gatronomía. Esta página va a buscar ofrecer diferentes medios y herramientas que enriquezcan la comunidad de usuarios y expertos, al brindar la posibilidad de acceder a recetas detalladas y distribuidas a interés del usuario, además de permitir compartir obras personales con los demás usuarios.
