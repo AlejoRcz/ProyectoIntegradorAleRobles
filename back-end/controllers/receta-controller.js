@@ -3,6 +3,11 @@ const Receta = require("../models/receta");
 // Crear receta
 exports.createReceta = async (req, res) => {
     try {
+        // Calcular costo total
+        const costoTotal = req.body.ingredientes.reduce((acc, ing) => {
+            return acc + (ing.costo * (ing.cantidad || 1));
+        }, 0);
+
         const receta = new Receta({
             titulo: req.body.titulo,
             descripcion: req.body.descripcion,
@@ -14,6 +19,7 @@ exports.createReceta = async (req, res) => {
             ocasion: req.body.ocasion,
             origen: req.body.origen,
             duracion: req.body.duracion,
+            costoTotal: costoTotal,
             presupuestoPorPorcion: req.body.presupuestoPorPorcion,
             imagenes: req.body.imagenes,
             derivadaDe: req.body.derivadaDe || null
@@ -31,6 +37,33 @@ exports.createReceta = async (req, res) => {
     }
 };
 
+// Crear receta derivada
+exports.createRecetaDerivada = async (req, res) => {
+    try {
+        const originalId = req.params.id;
+
+        const original = await Receta.findById(originalId);
+        if (!original)
+            return res.status(404).json({ message: "Receta original no encontrada" });
+
+        const derivada = new Receta({
+            ...req.body,           // pasos e ingredientes nuevos
+            autor: req.user.id,
+            derivadaDe: originalId,
+            validada: false        // debe validarse de nuevo
+        });
+
+        await derivada.save();
+
+        res.status(201).json({
+            message: "Receta derivada creada correctamente",
+            receta: derivada
+        });
+
+    } catch (error) {
+        res.status(500).json({ message: "Error al crear receta derivada" });
+    }
+};
 
 // Obtener recetas
 exports.getRecetas = async (req, res) => {
@@ -68,6 +101,13 @@ exports.updateReceta = async (req, res) => {
         if (receta.autor.toString() !== req.user.id)
             return res.status(403).json({ message: "No puedes editar esta receta" });
 
+        // Recalcular costo total si se actualizan ingredientes
+        if (req.body.ingredientes) {
+            receta.costoTotal = req.body.ingredientes.reduce((acc, ing) => {
+                return acc + (ing.costo * (ing.cantidad || 1));
+            }, 0);
+        }
+        
         Object.assign(receta, req.body);
 
         await receta.save();

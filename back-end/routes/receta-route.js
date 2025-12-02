@@ -3,6 +3,7 @@ const router = express.Router();
 
 const {
     createReceta,
+    createRecetaDerivada,
     getRecetas,
     getRecetaById,
     updateReceta,
@@ -18,6 +19,9 @@ const { authenticate, requireRole } = require("../middleware/autenticacion-middl
 
 // Crear receta
 router.post("/", authenticate, createReceta);
+
+//Receta derivada
+router.post("/derivar/:id", authenticate, createRecetaDerivada);
 
 // Obtener todas las recetas
 router.get("/", getRecetas);

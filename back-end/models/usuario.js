@@ -23,7 +23,7 @@ const userSchema = new mongoose.Schema({
         type: String,
         default: ""
   },
-
+  favoritos: [{ type: mongoose.Schema.Types.ObjectId, ref: "Receta" }],
   followers: [{ type: mongoose.Schema.Types.ObjectId, ref: "Usuario" }],
   following: [{ type: mongoose.Schema.Types.ObjectId, ref: "Usuario" }],
 },

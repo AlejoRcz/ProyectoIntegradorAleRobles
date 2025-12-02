@@ -58,6 +58,11 @@ const recetaSchema = new mongoose.Schema({
         required: true
     },
 
+    costoTotal: { 
+        type: Number,
+        default: 0 
+    },
+
     presupuestoPorPorcion: {
         type: Number,
         required: true

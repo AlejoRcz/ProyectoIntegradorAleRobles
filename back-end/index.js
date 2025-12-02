@@ -13,6 +13,11 @@ const PORT = process.env.PORT || 3000; //Usar el puerto indicado en .env o si no
 const authRoutes = require('./routes/autenticacion-route');
 const usuarioRoutes = require('./routes/usuario-route');
 const recetaRoutes = require('./routes/receta-route');
+const eventoRoutes = require("./routes/evento-route");
+const comunidadRoutes = require("./routes/comunidad-route");
+const chatRoutes = require("./routes/chat-route");
+const adminRoutes = require("./routes/admin-route");
+const reporteRoutes = require("./routes/reporte-route");
 
 app.use(express.json());//Habilita el manejo de JSON en las peticiones
 app.use(bodyParser.urlencoded({extended:true}));
@@ -27,6 +32,11 @@ mongoose.connect(process.env.MONGODB_URI)
 app.use('/api/auth', authRoutes);
 app.use('/api/usuarios', usuarioRoutes);
 app.use('/api/recetas', recetaRoutes);
+app.use("/api/eventos", eventoRoutes);
+app.use("/api/comunidad", comunidadRoutes);
+app.use("/api/chat", chatRoutes);
+app.use("/api/admin", adminRoutes);
+app.use("/api/reportes", reporteRoutes);
 
 app.get('/', (req,res)=> {
     res.send('Servidor en funcionamiento - Proyecto Gestión Culinaria');

@@ -28,17 +28,14 @@ Content-Type: application/json
 
 # 2. Inicio de sesión
 **POST** `/api/auth/login`
-
 ### Headers
 Content-Type: application/json
-
 ### Body
 
 {
   "identifier": "usuario1",
   "password": "1234"
 }
-
 ### Respuesta esperada
 
 {
@@ -55,7 +52,8 @@ Content-Type: application/json
 - Usarlo como Bearer Token en los siguientes endpoints.
 
 # 3. Usuarios (requiere autenticación)
-- Obtener tu perfil
+
+*Obtener tu perfil*
 **GET** `/api/usuarios/me`
 ### Headers
 Authorization: Bearer TU_TOKEN
@@ -84,8 +82,28 @@ Authorization: Bearer TU_TOKEN
 
 *Dejar de seguir usuario*
 **POST** `/api/usuarios/unfollow/:id`
+### Headers
+Authorization: Bearer TU_TOKEN
+
+*Añadir receta a favoritos*
+**POST** `/api/usuarios/favorites/add/:id`
+### Headers
+Authorization: Bearer TU_TOKEN
+Content-Type: application/json
+
+*Remover receta de favoritos*
+**POST** `/api/usuarios/favorites/remove/:id`
+### Headers
+Authorization: Bearer TU_TOKEN
+Content-Type: application/json
+
+*Obtener mis favoritos*
+**GET** `/api/usuarios/favorites`
+### Headers
+Authorization: Bearer TU_TOKEN
 
 # 4. Recetas
+
 *Crear receta*
 **POST** `/api/recetas`
 ### Headers
@@ -112,11 +130,41 @@ Authorization: Bearer TU_TOKEN
   "imagenes": []
 }
 
+*Receta derivada*
+**POST** `/api/recetas`
+### Headers
+Content-Type: application/json
+Authorization: Bearer TU_TOKEN
+### Body
+{
+  "titulo": "Arroz con Pollo",
+  "descripcion": "Receta típica",
+  "ingredientes": [
+    { "nombre": "Arroz", "cantidad": "2 tazas", "costo": 500 },
+    { "nombre": "Pollo", "cantidad": "300g", "costo": 1100 }
+  ],
+  "pasos": [
+    { "paso": "Cocinar el arroz" },
+    { "paso": "Freír el pollo" }
+  ],
+  "tipo": "almuerzo",
+  "dificultad": "Fácil",
+  "ocasion": "familiar",
+  "origen": "Costa Rica",
+  "duracion": 45,
+  "presupuestoPorPorcion": 1500,
+  "imagenes": []
+  ### "derivadaDe": "ID_DE_RECETA_BASE"
+}
+
 *Listar recetas*
 **GET** `/api/recetas`
 
 *Obtener receta por ID*
 **GET** `/api/recetas/:id`
+
+*Obtener receta derivada*
+**GET** `/api/recetas/:id(DERIVADA)`
 
 *Editar receta*
 **PUT** `/api/recetas/:id`
@@ -182,3 +230,106 @@ Content-Type: application/json
 
 *Recomendaciones*
 **GET** `/api/recetas/recomendadas`
+
+# 5. Comunidad
+
+*Eventos activos*
+**GET** `/api/comunidad/eventos`
+
+*Ranking de recetas POPULARES*
+**GET** `/api/comunidad/ranking/popularidad`
+- (Ordenado por cantidad de calificaciones)
+
+*Ranking por valoracion*
+**GET** `/api/comunidad/ranking/valoracion`
+- (Ordenado por promedio)
+
+*Ranking de usuarios por seguidores*
+**GET** `/api/comunidad/ranking/usuarios`
+
+*Ranking mas recetas*
+**GET** `/api/comunidad/ranking/cocineros`
+
+*Foro de Mensajes*
+**POST** `/api/chat`
+### Body
+{
+  "texto": "Hola comunidad, estoy probando el chat!"
+}
+
+*Obtener Mensajes del Chat*
+**GET** `/api/chat`
+
+# 6. Administrador
+
+*Crear Evento*
+**POST** `/api/eventos`
+### Header
+Authorization: Bearer TU_TOKEN_ADMIN
+Content-Type: application/json
+### Body
+{
+  "titulo": "Festival de Postres",
+  "descripcion": "Semana dedicada a postres latinoamericanos",
+  "mes": 12,
+  "ano": 2025,
+  "activo": true
+}
+
+*Editar Evento*
+**PUT** `/api/eventos/id:`
+### Header
+Authorization: Bearer TU_TOKEN_ADMIN
+Content-Type: application/json
+### Body
+{
+  "titulo": "Festival de Postres",
+  "descripcion": "Semana dedicada a postres latinoamericanos",
+  "mes": 12,
+  "ano": 2025,
+  "activo": true
+}
+- (cambios solo en los apartados necesarios)
+
+*Activar/Desactivar evento*
+**PATCH** `/api/eventos/id:/toggle`
+
+*Eliminar Evento*
+**DELETE** `/api/eventos/id:`
+
+*Ver todos los eventos*
+**GET** `/api/eventos`
+
+*Ver Usuarios*
+**GET** `/api/admin/usuarios`
+
+*Cambiar Rol a Usuarios*
+**PUT** `/api/admin/usuarios/role/id:`
+### Body
+{
+  "role": "chef"
+}
+
+*Eliminar Usuario*
+**DELETE** `/api/admin/usuarios/:id`
+
+*Ver reportes*
+**GET** `/api/admin/reportes`
+
+*Resolver reportes*
+**POST** `/api/admin/reportes/:id/resolver`
+### body
+{ "accion": "eliminar" }
+{ "accion": "ignorar" }
+
+*Ver metricas*
+**GET** `/api/admin/metrics`
+
+# 7. Reportes
+
+*Crear Reporte (usuario)*
+**POST** `/api/reportes/ID_DE_RECETA`
+### body
+{
+  "descripcion": "La receta tiene pasos incompletos"
+}
