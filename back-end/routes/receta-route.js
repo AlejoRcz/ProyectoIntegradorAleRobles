@@ -32,15 +32,6 @@ router.get("/buscar", buscar);
 // Recomendadas
 router.get("/recomendadas", recomendar);
 
-// Obtener receta por ID
-router.get("/:id", getRecetaById);
-
-// Editar receta
-router.put("/:id", authenticate, updateReceta);
-
-// Eliminar receta
-router.delete("/:id", authenticate, deleteReceta);
-
 // Validar receta (chef o admin)
 router.put("/validar/:id",
     authenticate,
@@ -53,5 +44,14 @@ router.post("/calificar/:id", authenticate, calificar);
 
 // Comentar
 router.post("/comentar/:id", authenticate, comentar);
+
+// Obtener receta por ID
+router.get("/:id", getRecetaById);
+
+// Editar receta
+router.put("/:id", authenticate, updateReceta);
+
+// Eliminar receta
+router.delete("/:id", authenticate, deleteReceta);
 
 module.exports = router;
