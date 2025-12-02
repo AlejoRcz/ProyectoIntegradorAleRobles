@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Mi Perfil – Robles Gastro Lab</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.5/font/bootstrap-icons.css" rel="stylesheet">
+  <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body>
+  <div id="navbar-root"></div>
+
+  <main class="container py-4">
+    <div id="profile-area" class="row g-4">
+      <div class="col-lg-4">
+        <div class="card p-3 shadow text-center">
+          <img id="profile-image" src="/assets/placeholder.png" alt="Avatar" class="rounded-circle mb-3" style="width:110px;height:110px;object-fit:cover;">
+          <h4 id="profile-username"></h4>
+          <p id="profile-name" class="text-muted small"></p>
+          <p id="profile-bio" class="small"></p>
+
+          <div class="d-grid gap-2 mt-3">
+            <a id="editar-btn" class="btn btn-outline-primary">Editar perfil</a>
+            <a id="ver-favs" class="btn btn-outline-danger">Ver favoritos</a>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-lg-8">
+        <div class="card p-3 shadow">
+          <h5>Detalles</h5>
+
+          <form id="profile-form" class="row g-2">
+            <div class="col-md-6">
+              <label class="form-label">Usuario</label>
+              <input name="username" class="form-control" required />
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Nombre</label>
+              <input name="name" class="form-control" />
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">País</label>
+              <input name="country" class="form-control" />
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Intereses (comma separated)</label>
+              <input name="interests" class="form-control" />
+            </div>
+            <div class="col-12">
+              <label class="form-label">Bio</label>
+              <textarea name="bio" class="form-control" rows="3"></textarea>
+            </div>
+            <div class="col-12 text-end">
+              <button class="btn btn-primary">Guardar cambios</button>
+            </div>
+          </form>
+        </div>
+
+        <div class="card p-3 mt-3 shadow">
+          <h5>Favoritos</h5>
+          <div id="favorites-list" class="row g-3 mt-2">
+            <div class="col-12 text-muted">Cargando favoritos…</div>
+          </div>
+        </div>
+
+        <div class="card p-3 mt-3 shadow">
+          <h5>Seguidores / Siguiendo</h5>
+          <div id="followers-section" class="row g-2">
+            <div class="col-12 text-muted">Cargando…</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <div id="footer-root"></div>
+
+  <script src="/components/navbar.js"></script>
+  <script src="/components/footer.js"></script>
+
+  <script src="/services/usuarioService.js"></script>
+  <script src="/services/recetasService.js"></script>
+
+  <script>
+    const token = localStorage.getItem('token');
+    if (!token) {
+      // si no está autenticado, redirigir al login
+      window.location.href = '/pages/login.html';
+    }
+
+    const form = document.getElementById('profile-form');
+
+    async function loadProfile() {
+      try {
+        const me = await authService.getMyProfile?.(token) || await fetch('/api/usuarios/me', { headers: { 'Authorization': `Bearer ${token}` } }).then(r=>r.json());
+        // me contiene el usuario
+        document.getElementById('profile-image').src = me.profileImage || '/assets/placeholder.png';
+        document.getElementById('profile-username').innerText = '@' + (me.username || '');
+        document.getElementById('profile-name').innerText = me.name || '';
+        document.getElementById('profile-bio').innerText = me.bio || '';
+
+        // llenar formulario
+        form.username.value = me.username || '';
+        form.name.value = me.name || '';
+        form.country.value = me.country || '';
+        form.bio.value = me.bio || '';
+        form.interests.value = me.interests || '';
+
+        // favoritos
+        const favs = await usuarioService.getFavorites(token);
+        const favContainer = document.getElementById('favorites-list');
+        if (!favs || favs.length === 0) favContainer.innerHTML = '<div class="col-12 text-muted">No tienes favoritos aún.</div>';
+        else favContainer.innerHTML = favs.map(r => `
+          <div class="col-12 col-md-6">
+            <div class="card h-100">
+              <div class="row g-0">
+                <div class="col-4"><img src="${r.imagenes?.[0]||'/assets/placeholder.png'}" class="img-fluid rounded-start"></div>
+                <div class="col-8 p-2">
+                  <h6 class="mb-1">${r.titulo}</h6>
+                  <a href="/pages/receta-view.html?id=${r._id}" class="small">Ver receta</a>
+                </div>
+              </div>
+            </div>
+          </div>
+        `).join('');
+
+        // followers/following (simplificado: usamos los arrays que vienen en me)
+        const folSection = document.getElementById('followers-section');
+        const followers = me.followers || [];
+        const following = me.following || [];
+        folSection.innerHTML = `
+          <div class="col-12"><small>Seguidores: ${followers.length}</small></div>
+          <div class="col-12"><small>Siguiendo: ${following.length}</small></div>
+        `;
+
+      } catch (err) {
+        console.error(err);
+        alert('Error cargando perfil.');
+      }
+    }
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const fd = new FormData(form);
+      const payload = {
+        username: fd.get('username'),
+        profileImage: undefined, // si quieres subir, lo permitimos como URL en el campo profileImage adicional
+        country: fd.get('country'),
+        bio: fd.get('bio'),
+        interests: fd.get('interests')
+      };
+      try {
+        const res = await usuarioService.updateProfile(token, payload);
+        if (res && res.message) {
+          alert(res.message);
+          // refrescar
+          loadProfile();
+          localStorage.setItem('user', JSON.stringify(res.user || {}));
+        } else {
+          alert('Error al actualizar.');
+        }
+      } catch (err) {
+        console.error(err);
+        alert('Ocurrió un error al guardar.');
+      }
+    });
+
+    document.getElementById('ver-favs').addEventListener('click', () => {
+      window.location.href = '/pages/recetas-list.html?favorites=1';
+    });
+
+    loadProfile();
+  </script>
+</body>
+</html>

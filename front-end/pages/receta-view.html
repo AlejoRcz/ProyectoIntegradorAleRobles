@@ -1,0 +1,234 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Receta – Robles Gastro Lab</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.5/font/bootstrap-icons.css" rel="stylesheet">
+  <link rel="stylesheet" href="/css/styles.css">
+</head>
+
+<body>
+<div id="navbar-root"></div>
+
+<main class="container py-4">
+
+  <div id="loading" class="text-center text-muted py-5">
+    Cargando receta…
+  </div>
+
+  <div id="content" class="d-none">
+
+    <div class="row">
+      <!-- Imagen principal -->
+      <div class="col-lg-6 mb-3">
+        <img id="imagen-principal" class="img-fluid rounded shadow-sm" alt="Imagen de la receta">
+      </div>
+
+      <!-- Información principal -->
+      <div class="col-lg-6">
+        <h1 id="titulo"></h1>
+        <p id="descripcion" class="text-muted"></p>
+
+        <div class="mb-3">
+          <i class="bi bi-award text-warning"></i>
+          <span id="promedio" class="fw-bold"></span> / 5
+        </div>
+
+        <p><strong>Tipo: </strong><span id="tipo"></span></p>
+        <p><strong>Dificultad: </strong><span id="dificultad"></span></p>
+        <p><strong>Ocasión: </strong><span id="ocasion"></span></p>
+        <p><strong>Presupuesto por porción: </strong><span id="presupuesto"></span> MXN</p>
+
+        <!-- Acciones -->
+        <div id="acciones" class="d-flex gap-2 mt-4 flex-wrap"></div>
+      </div>
+    </div>
+
+    <hr class="my-4">
+
+    <!-- INGREDIENTES -->
+    <h3>Ingredientes</h3>
+    <ul id="ingredientes" class="list-group mb-4"></ul>
+
+    <!-- PASOS -->
+    <h3>Preparación</h3>
+    <ol id="pasos" class="mb-4"></ol>
+
+    <hr class="my-4">
+
+    <!-- CALIFICACIÓN -->
+    <section class="mb-4">
+      <h4>Calificar receta</h4>
+      <div id="rating" class="fs-3"></div>
+    </section>
+
+    <hr>
+
+    <!-- COMENTARIOS -->
+    <section>
+      <h4>Comentarios</h4>
+
+      <!-- Crear comentario -->
+      <form id="comment-form" class="d-flex mb-3">
+        <input id="comment-text" class="form-control me-2" placeholder="Escribe un comentario…">
+        <button class="btn btn-primary">Enviar</button>
+      </form>
+
+      <!-- Lista -->
+      <ul id="comentarios" class="list-group"></ul>
+    </section>
+
+  </div>
+</main>
+
+<div id="footer-root"></div>
+
+<script src="/components/navbar.js"></script>
+<script src="/components/footer.js"></script>
+
+<script src="/services/recetasService.js"></script>
+<script src="/services/usuarioService.js"></script>
+<script src="/services/comentarioService.js"></script>
+<script src="/services/adminService.js"></script>
+
+<script>
+const params = new URLSearchParams(window.location.search);
+const id = params.get("id");
+
+const token = localStorage.getItem("token");
+let user = null;
+try { user = JSON.parse(localStorage.getItem("user")); } catch {}
+
+async function loadReceta() {
+  const receta = await recetasService.getById(id);
+  document.getElementById("loading").classList.add("d-none");
+  document.getElementById("content").classList.remove("d-none");
+
+  // Datos generales
+  document.getElementById("titulo").innerText = receta.titulo;
+  document.getElementById("descripcion").innerText = receta.descripcion || "";
+  document.getElementById("tipo").innerText = receta.tipo || "";
+  document.getElementById("dificultad").innerText = receta.dificultad || "";
+  document.getElementById("ocasion").innerText = receta.ocasion || "";
+  document.getElementById("presupuesto").innerText = receta.presupuesto || "";
+  document.getElementById("imagen-principal").src = receta.imagenes?.[0] || "/assets/placeholder.png";
+  document.getElementById("promedio").innerText = receta.promedio?.toFixed?.(1) || "—";
+
+  // Ingredientes
+  document.getElementById("ingredientes").innerHTML = receta.ingredientes.map(i =>
+    `<li class="list-group-item d-flex justify-content-between">
+      ${i.nombre} - ${i.cantidad}
+      <span class="text-muted">${i.costo} MXN</span>
+    </li>`
+  ).join("");
+
+  // Pasos
+  document.getElementById("pasos").innerHTML = receta.pasos.map(p => `<li class="mb-2">${p}</li>`).join("");
+
+  // Acciones
+  const acciones = document.getElementById("acciones");
+  acciones.innerHTML = "";
+
+  if (token) {
+    // Favorito
+    acciones.innerHTML += `<button id="fav" class="btn btn-outline-danger"><i class="bi bi-heart"></i></button>`;
+
+    // Derivar
+    acciones.innerHTML += `<a class="btn btn-secondary" href="/pages/create-receta.html?parent=${receta._id}">
+        Crear receta derivada</a>`;
+
+    // Si es autor
+    if (user && user._id === receta.autor?._id) {
+      acciones.innerHTML += `<a class="btn btn-warning" href="/pages/edit-receta.html?id=${receta._id}">Editar</a>`;
+      acciones.innerHTML += `<button id="delete" class="btn btn-danger">Eliminar</button>`;
+    }
+
+    // Validar receta (chefs/admin)
+    if (user.role === "chef" || user.role === "admin") {
+      acciones.innerHTML += `<button id="validar" class="btn btn-success">Validar receta</button>`;
+    }
+
+    // Reportar
+    acciones.innerHTML += `<button id="reportar" class="btn btn-outline-dark">Reportar receta</button>`;
+  }
+
+  // Calificación
+  renderRating(receta._id);
+
+  // Comentarios
+  loadComentarios(receta._id);
+
+  // ---------------- Eventos ----------------
+  document.getElementById("fav")?.addEventListener("click", async () => {
+    await usuarioService.addFavorite(token, receta._id);
+    alert("Agregada a favoritos");
+  });
+
+  document.getElementById("delete")?.addEventListener("click", async () => {
+    if (!confirm("¿Seguro que deseas eliminar la receta?")) return;
+    await recetasService.delete(token, receta._id);
+    window.location.href = "/pages/recetas-list.html";
+  });
+
+  document.getElementById("validar")?.addEventListener("click", async () => {
+    await recetasService.validar(token, receta._id);
+    alert("Receta validada");
+  });
+
+  document.getElementById("reportar")?.addEventListener("click", async () => {
+    await adminService.reportar(token, receta._id);
+    alert("Reporte enviado");
+  });
+}
+
+// ⭐ RATING
+function renderRating(recetaId) {
+  const cont = document.getElementById("rating");
+  cont.innerHTML = "";
+
+  for (let i = 1; i <= 5; i++) {
+    const star = document.createElement("i");
+    star.className = "bi bi-star";
+    star.setAttribute("data-value", i);
+    star.style.cursor = "pointer";
+    star.onclick = async () => {
+      if (!token) return alert("Debes iniciar sesión.");
+      await recetasService.calificar(token, recetaId, i);
+      alert("Calificación enviada");
+      loadReceta();
+    };
+    cont.appendChild(star);
+  }
+}
+
+// ⭐ COMENTARIOS
+async function loadComentarios(recetaId) {
+  const lista = document.getElementById("comentarios");
+  const datos = await comentarioService.listarPorReceta(recetaId);
+
+  lista.innerHTML = datos.map(c =>
+    `<li class="list-group-item">
+      <strong>${c.usuario?.username || "Usuario"}</strong><br>
+      ${c.texto}
+      <div class="small text-muted">${new Date(c.fecha).toLocaleString()}</div>
+    </li>`
+  ).join("");
+}
+
+document.getElementById("comment-form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const texto = document.getElementById("comment-text").value.trim();
+  if (!texto) return;
+
+  await comentarioService.crear(token, id, texto);
+  document.getElementById("comment-text").value = "";
+  loadComentarios(id);
+});
+
+loadReceta();
+</script>
+
+</body>
+</html>
