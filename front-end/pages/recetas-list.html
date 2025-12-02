@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Recetas – Robles Gastro Lab</title>
+
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.5/font/bootstrap-icons.css" rel="stylesheet">
+  <link rel="stylesheet" href="/css/styles.css">
+</head>
+
+<body>
+<div id="navbar-root"></div>
+
+<main class="container py-4">
+
+  <h1 class="mb-4">Todas las recetas</h1>
+
+  <!-- FILTROS (lateral o superior) -->
+  <section class="card p-3 mb-4 shadow-sm">
+    <form id="filters" class="row g-3">
+      
+      <div class="col-md-4">
+        <label class="form-label">Buscar por nombre</label>
+        <input class="form-control" name="q" placeholder="Ej. lasaña, empanadas...">
+      </div>
+
+      <div class="col-md-3">
+        <label class="form-label">Tipo</label>
+        <select class="form-select" name="tipo">
+          <option value="">Todos</option>
+          <option value="desayuno">Desayuno</option>
+          <option value="almuerzo">Almuerzo</option>
+          <option value="cena">Cena</option>
+          <option value="postre">Postre</option>
+        </select>
+      </div>
+
+      <div class="col-md-3">
+        <label class="form-label">Dificultad</label>
+        <select class="form-select" name="dificultad">
+          <option value="">Todas</option>
+          <option value="Fácil">Fácil</option>
+          <option value="Media">Media</option>
+          <option value="Difícil">Difícil</option>
+        </select>
+      </div>
+
+      <div class="col-md-2 d-grid">
+        <label class="form-label">&nbsp;</label>
+        <button class="btn btn-primary">Filtrar</button>
+      </div>
+    </form>
+  </section>
+
+  <!-- RESULTADOS -->
+  <section>
+    <div id="results" class="row g-4">
+      <div class="col-12 text-center text-muted py-4">Cargando recetas…</div>
+    </div>
+  </section>
+
+</main>
+
+<div id="footer-root"></div>
+
+<!-- scripts -->
+<script src="/components/navbar.js"></script>
+<script src="/components/footer.js"></script>
+
+<script src="/services/recetasService.js"></script>
+<script src="/services/usuarioService.js"></script>
+
+<script>
+const results = document.getElementById("results");
+const filtersForm = document.getElementById("filters");
+
+function getToken() {
+  return localStorage.getItem("token");
+}
+function getUser() {
+  try { return JSON.parse(localStorage.getItem("user")); }
+  catch { return null; }
+}
+
+async function loadRecetas() {
+  const params = new URLSearchParams(window.location.search);
+  
+  // Si hay filtros, usar el endpoint /buscar
+  let recetas;
+  if (params.toString()) {
+    recetas = await recetasService.buscar(Object.fromEntries(params.entries()));
+  } else {
+    recetas = await recetasService.getAll();
+  }
+
+  if (!recetas || recetas.length === 0) {
+    results.innerHTML = `<div class="col-12 text-center text-muted py-4">No se encontraron recetas.</div>`;
+    return;
+  }
+
+  const token = getToken();
+  const user = getUser();
+
+  results.innerHTML = recetas.map(r => `
+    <div class="col-12 col-md-6 col-lg-4">
+      <div class="card h-100 shadow-sm">
+        <img src="${r.imagenes?.[0] || '/assets/placeholder.png'}" class="card-img-top" alt="${r.titulo}">
+        <div class="card-body d-flex flex-column">
+          <h5>${r.titulo}</h5>
+          <p class="small text-muted text-truncate">${r.descripcion || ""}</p>
+
+          <div class="mt-auto d-flex justify-content-between align-items-center">
+            <a href="/pages/receta-view.html?id=${r._id}" class="btn btn-sm btn-primary">Ver</a>
+            <div>
+              <span class="text-warning"><i class="bi bi-star-fill"></i> ${r.promedio?.toFixed(1) || "—"}</span>
+              ${token ? `<button class="btn btn-sm btn-outline-danger ms-2 fav-btn" data-id="${r._id}">
+                <i class="bi bi-heart"></i>
+              </button>` : ""}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  `).join("");
+
+  // Botones de favorito
+  document.querySelectorAll(".fav-btn").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      const id = btn.dataset.id;
+      const res = await usuarioService.addFavorite(token, id);
+      btn.classList.remove("btn-outline-danger");
+      btn.classList.add("btn-danger");
+      btn.innerHTML = `<i class="bi bi-heart-fill"></i>`;
+    });
+  });
+}
+
+// Aplicar filtros al enviar formulario
+filtersForm.addEventListener("submit", e => {
+  e.preventDefault();
+  const data = new FormData(filtersForm);
+  const params = new URLSearchParams(data.entries());
+  window.location.search = params.toString();
+});
+
+loadRecetas();
+</script>
+
+</body>
+</html>
