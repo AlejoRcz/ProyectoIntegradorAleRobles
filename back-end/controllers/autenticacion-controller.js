@@ -1,11 +1,10 @@
-const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const User = require("../models/usuario");
 
 // Register
 const register = async (req, res) => {
   try {
-    const { username, email, password, name } = req.body;
+    const { username, email, password, name, role } = req.body;
 
     if (!username || !email || !password)
       return res.status(400).json({ message: "Faltan campos por llenar" });
@@ -15,22 +14,20 @@ const register = async (req, res) => {
     });
 
     if (existing)
-      return res.status(400).json({ message: "User already exists" });
+      return res.status(400).json({ message: "Usuario ya existente" });
 
-    const salt = await bcrypt.genSalt(10);
-    const passwordHash = await bcrypt.hash(password, salt);
-
+    
     const newUser = new User({
       username,
       email,
       name,
-      passwordHash,
+      passwordHash: password,
       role: role || "user"
     });
 
     await newUser.save();
 
-    res.json({ message: "User registered successfully" });
+    res.json({ message: "Usuario registrado exitosamente" });
 
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -50,11 +47,11 @@ const login = async (req, res) => {
     });
 
     if (!user)
-      return res.status(400).json({ message: "Invalid credentials" });
+      return res.status(400).json({ message: "Datos inválidos" });
 
-    const isValid = await bcrypt.compare(password, user.passwordHash);
-    if (!isValid)
-      return res.status(400).json({ message: "Invalid credentials" });
+    
+    if (password !== user.passwordHash)
+      return res.status(400).json({ message: "Datos inválidos" });
 
     const token = jwt.sign(
       { id: user._id, role: user.role },
@@ -63,7 +60,7 @@ const login = async (req, res) => {
     );
 
     res.json({
-      message: "Login successful",
+      message: "Inicio de sesión exitoso",
       token,
       user: {
         id: user._id,

@@ -9,21 +9,21 @@ const {
     unfollowUser
 } = require("../controllers/usuario-controller");
 
-const { verifyToken } = require("../middlewares/autorizacion-middleware");
+const { authenticate } = require("../middleware/autenticacion-middleware");
 
 // Perfil propio
-router.get("/me", verifyToken, getMyProfile);
+router.get("/me", authenticate, getMyProfile);
 
 // Ver otro usuario
-router.get("/:id", verifyToken, getUserById);
+router.get("/:id", authenticate, getUserById);
 
 // Actualizar perfil
-router.put("/update", verifyToken, updateProfile);
+router.put("/update", authenticate, updateProfile);
 
 // Seguir usuario
-router.post("/follow/:id", verifyToken, followUser);
+router.post("/follow/:id", authenticate, followUser);
 
 // Dejar de seguir usuario
-router.post("/unfollow/:id", verifyToken, unfollowUser);
+router.post("/unfollow/:id", authenticate, unfollowUser);
 
 module.exports = router;
