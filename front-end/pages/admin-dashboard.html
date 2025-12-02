@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Admin Dashboard – Robles Gastro Lab</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.5/font/bootstrap-icons.css" rel="stylesheet">
+  <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body>
+  <div id="navbar-root"></div>
+
+  <main class="container py-4">
+    <h1 class="mb-4">Panel de administración</h1>
+
+    <div id="not-auth" class="alert alert-danger d-none">No autorizado. Debes ser admin.</div>
+
+    <div id="dashboard" class="d-none">
+      <div class="row g-3">
+        <div class="col-md-3">
+          <div class="card p-3 shadow">
+            <h6>Usuarios</h6>
+            <div id="metric-users" class="display-6 fw-bold">—</div>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="card p-3 shadow">
+            <h6>Recetas</h6>
+            <div id="metric-recipes" class="display-6 fw-bold">—</div>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="card p-3 shadow">
+            <h6>Validadas</h6>
+            <div id="metric-valid" class="display-6 fw-bold">—</div>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="card p-3 shadow">
+            <h6>Pendientes</h6>
+            <div id="metric-pend" class="display-6 fw-bold">—</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="row mt-4 g-4">
+        <div class="col-lg-6">
+          <div class="card p-3 shadow">
+            <h5>Gestión de usuarios</h5>
+            <div id="users-list" class="mt-2"></div>
+          </div>
+
+          <div class="card p-3 shadow mt-3">
+            <h5>Crear categoría / etiqueta</h5>
+            <form id="admin-create" class="row g-2">
+              <div class="col-6">
+                <input name="categoria" class="form-control" placeholder="Nombre categoría">
+              </div>
+              <div class="col-6 d-grid">
+                <button class="btn btn-outline-primary">Crear categoría</button>
+              </div>
+              <div class="col-6">
+                <input name="etiqueta" class="form-control" placeholder="Nombre etiqueta">
+              </div>
+              <div class="col-6 d-grid">
+                <button class="btn btn-outline-secondary" data-action="etiqueta">Crear etiqueta</button>
+              </div>
+            </form>
+          </div>
+        </div>
+
+        <div class="col-lg-6">
+          <div class="card p-3 shadow">
+            <h5>Reportes</h5>
+            <div id="reportes-list" class="mt-2"></div>
+          </div>
+
+          <div class="card p-3 shadow mt-3">
+            <h5>Crear evento</h5>
+            <form id="create-event" class="row g-2">
+              <div class="col-md-6"><input name="titulo" class="form-control" placeholder="Título" required></div>
+              <div class="col-md-6"><input name="mes" class="form-control" type="number" min="1" max="12" placeholder="Mes (1-12)" required></div>
+              <div class="col-md-6"><input name="ano" class="form-control" type="number" placeholder="Año" required></div>
+              <div class="col-12"><textarea name="descripcion" class="form-control" placeholder="Descripción" rows="2"></textarea></div>
+              <div class="col-12 text-end"><button class="btn btn-success">Crear evento</button></div>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <div id="footer-root"></div>
+
+  <script src="/components/navbar.js"></script>
+  <script src="/components/footer.js"></script>
+
+  <script src="/services/adminService.js"></script>
+  <script src="/services/eventoService.js"></script>
+
+  <script>
+    const token = localStorage.getItem('token');
+    const user = (() => { try { return JSON.parse(localStorage.getItem('user')); } catch { return null; } })();
+
+    if (!token || !user || user.role !== 'admin') {
+      document.getElementById('not-auth').classList.remove('d-none');
+    } else {
+      document.getElementById('dashboard').classList.remove('d-none');
+      initAdmin();
+    }
+
+    async function initAdmin() {
+      // métricas
+      const m = await adminService.getMetrics(token);
+      document.getElementById('metric-users').innerText = m.totalUsuarios ?? '0';
+      document.getElementById('metric-recipes').innerText = m.totalRecetas ?? '0';
+      document.getElementById('metric-valid').innerText = m.recetasValidadas ?? '0';
+      document.getElementById('metric-pend').innerText = m.recetasPendientes ?? '0';
+
+      // usuarios
+      const users = await adminService.listUsers(token);
+      document.getElementById('users-list').innerHTML = (users || []).map(u => `
+        <div class="d-flex justify-content-between align-items-center border-bottom py-2">
+          <div>
+            <strong>${u.username}</strong><br>
+            <small class="text-muted">${u.email}</small>
+          </div>
+          <div class="d-flex gap-2">
+            <select class="form-select form-select-sm role-select" data-id="${u._id}">
+              <option value="user" ${u.role==='user'?'selected':''}>user</option>
+              <option value="chef" ${u.role==='chef'?'selected':''}>chef</option>
+              <option value="admin" ${u.role==='admin'?'selected':''}>admin</option>
+            </select>
+            <button class="btn btn-sm btn-danger del-user" data-id="${u._id}"><i class="bi bi-trash"></i></button>
+          </div>
+        </div>
+      `).join('');
+
+      // listeners roles
+      document.querySelectorAll('.role-select').forEach(sel=>{
+        sel.addEventListener('change', async (e)=>{
+          const id = sel.dataset.id; const role = sel.value;
+          await adminService.updateUserRole(token,id,role);
+          alert('Rol actualizado');
+        });
+      });
+      document.querySelectorAll('.del-user').forEach(btn=>{
+        btn.addEventListener('click', async ()=>{
+          if (!confirm('Eliminar usuario?')) return;
+          await adminService.deleteUser(token, btn.dataset.id);
+          alert('Usuario eliminado');
+          initAdmin();
+        });
+      });
+
+      // reportes
+      const rep = await adminService.getReportes(token);
+      document.getElementById('reportes-list').innerHTML = (rep || []).map(r => `
+        <div class="border-bottom py-2">
+          <div><strong>${r.usuario?.username || 'usuario'}</strong> reportó receta <em>${r.receta?.titulo || '—'}</em></div>
+          <div class="small text-muted">${r.descripcion}</div>
+          <div class="mt-2">
+            <button class="btn btn-sm btn-success resolver" data-id="${r._id}">Resolver</button>
+          </div>
+        </div>
+      `).join('');
+
+      document.querySelectorAll('.resolver').forEach(b=>{
+        b.addEventListener('click', async ()=> {
+          await adminService.resolverReporte(token, b.dataset.id);
+          alert('Reporte resuelto');
+          initAdmin();
+        });
+      });
+
+      // crear categoria/etiqueta
+      document.getElementById('admin-create').addEventListener('submit', async (e)=>{
+        e.preventDefault();
+        const cat = e.target.categoria.value.trim();
+        const eti = e.target.etiqueta.value.trim();
+
+        if (cat) { await adminService.createCategoria(token, cat); alert('Categoria creada'); }
+        if (eti) { await adminService.createEtiqueta(token, eti); alert('Etiqueta creada'); }
+        e.target.reset();
+      });
+
+      // crear evento
+      document.getElementById('create-event').addEventListener('submit', async (e)=>{
+        e.preventDefault();
+        const fd = new FormData(e.target);
+        const payload = {
+          titulo: fd.get('titulo'),
+          descripcion: fd.get('descripcion'),
+          mes: Number(fd.get('mes')),
+          ano: Number(fd.get('ano')),
+          imagen: ''
+        };
+
+        await eventoService.create(token, payload);
+        alert('Evento creado');
+        e.target.reset();
+      });
+    }
+  </script>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
