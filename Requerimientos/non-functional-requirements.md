@@ -12,7 +12,7 @@
 ## 2. Seguridad
 
 **RNF2.1** Las contraseñas deben guardarse encriptadas.  
-**RNF2.2** Las sesiones expiran tras **30 minutos** de inactividad.  
+**RNF2.2** Las sesiones expiran tras **2 horas** de inactividad.  
 **RNF2.3** El sistema bloquea una cuenta tras **5 intentos fallidos** de inicio de sesión.
 
 ## 3. Usabilidad y Accesibilidad

@@ -1,4 +1,4 @@
-# 🚀 Pruebas de API (Thunder Client)
+# Todas las funciones / endpoints del sistema para probar
 
 Esta sección permite verificar manualmente todas las funcionalidades del backend 
 de froma interna sin hacer uso del frontend. Esto se hace usando Thunder Client y valida si el servidor y todas las rutas, modelos y controles funcionan de forma adecuada.
@@ -8,7 +8,7 @@ Cada prueba incluye: método, endpoint, headers y el JSON necesario.
 
 # 1. Autenticación
 
-## 🔹 Registro de usuario
+## Registro de usuario
 **POST** `/api/auth/register`
 
 ### Headers

@@ -15,7 +15,7 @@ exports.crearReporte = async (req, res) => {
         res.status(201).json({ message: "Reporte enviado", reporte });
 
     } catch (error) {
-        console.log("❌ ERROR EN REPORTE:", error); 
+        console.log("ERROR EN REPORTE:", error); 
         res.status(500).json({ message: "Error al enviar el reporte" });
     }
 };
