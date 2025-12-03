@@ -1,14 +1,13 @@
 /******************************
  *  Robles Gastro Lab — main.js
- *  Archivo principal del index
  *****************************/
 
-import recetasService from "/services/recetasService.js";
+document.addEventListener("DOMContentLoaded", () => {
+  loadRecommended();
+  setupQuickSearch();
+});
 
-/* ================================
-   CARGAR RECOMENDADAS
-================================ */
-const loadRecommended = async () => {
+async function loadRecommended() {
   const container = document.getElementById("recommended-list");
   if (!container) return;
 
@@ -19,91 +18,59 @@ const loadRecommended = async () => {
   `;
 
   try {
-    const recetas = await recetasService.recomendar(); 
-    // backend devuelve: [ {...}, {...} ]
+    const recetas = await window.recetasService.recomendar();
 
-    container.innerHTML = "";
-
-    if (!recetas.length) {
+    if (!recetas || recetas.length === 0) {
       container.innerHTML = `
         <div class="col-12 text-center py-4 text-muted">
-          No hay recomendaciones disponibles.
+          No hay recomendaciones todavía.
         </div>
       `;
       return;
     }
 
-    recetas.forEach(rec => {
-      const img = rec.imagenes?.[0] || "/assets/default.jpg";
-      const autor = rec.autor?.username || "Usuario";
+    container.innerHTML = recetas.map(r => {
+      const img = r.imagenes?.[0] || "/assets/placeholder.png";
+      const promedio = (typeof r.promedio === "number")
+        ? r.promedio.toFixed(1)
+        : "—";
 
-      container.innerHTML += `
-        <div class="col-12 col-md-4">
-          <div class="card h-100 shadow-sm recipe-card clickable"
-               onclick="window.location.href='/pages/receta.html?id=${rec._id}'">
-
-            <img src="${img}" class="card-img-top" alt="${rec.titulo}" style="object-fit: cover; height: 180px;">
-
+      return `
+        <div class="col-12 col-md-6 col-lg-4">
+          <div class="card h-100 shadow-sm">
+            <img src="${img}" class="card-img-top" style="object-fit:cover;height:180px;">
             <div class="card-body d-flex flex-column">
-              <h5 class="card-title">${rec.titulo}</h5>
-              <p class="small text-muted mb-2">Por ${autor}</p>
+              <h5>${r.titulo}</h5>
+              <p class="small text-muted text-truncate">${r.descripcion || ""}</p>
 
               <div class="mt-auto d-flex justify-content-between align-items-center">
-                <span class="badge bg-warning text-dark">
-                  ⭐ ${rec.promedio?.toFixed(1) ?? "—"}
-                </span>
-
-                <a class="btn btn-primary btn-sm" href="/pages/receta.html?id=${rec._id}">
-                  Ver más
-                </a>
+                <a href="/pages/receta-view.html?id=${r._id}" class="btn btn-sm btn-primary">Ver</a>
+                <span class="text-warning"><i class="bi bi-star-fill"></i> ${promedio}</span>
               </div>
             </div>
-
           </div>
         </div>
       `;
-    });
+    }).join("");
 
-  } catch (error) {
-    console.error("Error al cargar recomendadas:", error);
+  } catch (err) {
+    console.error(err);
     container.innerHTML = `
       <div class="col-12 text-danger text-center py-4">
-        Error al cargar recomendaciones. Intenta más tarde.
+        Error al cargar recetas.
       </div>
     `;
   }
-};
+}
 
-
-/* ================================
-   BUSCADOR RÁPIDO DEL INDEX
-================================ */
-const setupQuickSearch = () => {
+function setupQuickSearch() {
   const form = document.getElementById("quick-search");
   if (!form) return;
 
   form.addEventListener("submit", e => {
     e.preventDefault();
-
-    const q = document.getElementById("q").value.trim();
-    const tipo = document.getElementById("tipo").value;
-    const dificultad = document.getElementById("dificultad").value;
-
-    const query = new URLSearchParams();
-
-    if (q) query.append("q", q);
-    if (tipo) query.append("tipo", tipo);
-    if (dificultad) query.append("dificultad", dificultad);
-
-    window.location.href = `/pages/recetas-list.html?${query.toString()}`;
+    const fd = new FormData(form);
+    const params = new URLSearchParams(fd.entries());
+    window.location.href = `/pages/recetas-list.html?${params.toString()}`;
   });
-};
-
-
-/* ================================
-   INICIALIZAR INDEX
-================================ */
-document.addEventListener("DOMContentLoaded", () => {
-  loadRecommended();
-  setupQuickSearch();
-});
+}

@@ -1,4 +1,4 @@
-<!doctype html>
+<<!doctype html>
 <html lang="es">
 <head>
   <meta charset="utf-8">
@@ -17,20 +17,23 @@
         <div class="card p-4 shadow">
           <h2 class="h4 mb-3 text-center">Crear cuenta</h2>
 
-          <form id="register-form">
+          <form id="register-form" novalidate>
             <div class="row g-2">
               <div class="col-md-6">
                 <label class="form-label">Usuario (username)</label>
                 <input name="username" class="form-control" required />
               </div>
+
               <div class="col-md-6">
                 <label class="form-label">Nombre</label>
                 <input name="name" class="form-control" />
               </div>
+
               <div class="col-md-6">
                 <label class="form-label">Correo electrónico</label>
                 <input type="email" name="email" class="form-control" required />
               </div>
+
               <div class="col-md-6">
                 <label class="form-label">Contraseña</label>
                 <input type="password" name="password" class="form-control" required minlength="6" />
@@ -46,7 +49,7 @@
               </div>
 
               <div class="col-12 text-center mt-3">
-                <button class="btn btn-primary w-100" type="submit">Registrarme</button>
+                <button id="register-btn" class="btn btn-primary w-100" type="submit">Registrarme</button>
               </div>
 
               <div class="col-12 text-center mt-2 small">
@@ -64,33 +67,47 @@
 
   <script src="/components/navbar.js"></script>
   <script src="/components/footer.js"></script>
+  <script src="/services/http.js"></script>
   <script src="/services/authService.js"></script>
 
-  <script>
-    document.getElementById('register-form').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const fd = new FormData(e.target);
-      const payload = {
-        username: fd.get('username'),
-        name: fd.get('name'),
-        email: fd.get('email'),
-        password: fd.get('password'),
-        role: fd.get('role')
-      };
+<script>
+document.getElementById('register-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const btn = document.getElementById('register-btn');
+  btn.disabled = true;
+  const fd = new FormData(e.target);
 
-      try {
-        const res = await authService.register(payload);
-        if (res && res.message) {
-          alert(res.message || 'Registrado');
-          window.location.href = '/pages/login.html';
-        } else {
-          alert('Error en el registro. Revisa los datos.');
-        }
-      } catch (err) {
-        console.error(err);
-        alert('Ocurrió un error al registrar.');
-      }
-    });
-  </script>
+  const payload = {
+    username: (fd.get('username') || '').trim(),
+    name: (fd.get('name') || '').trim(),
+    email: (fd.get('email') || '').trim().toLowerCase(),
+    password: fd.get('password'),
+    role: fd.get('role') || 'user'
+  };
+
+  // Validación mínima en cliente
+  if (!payload.username || !payload.email || !payload.password) {
+    alert('Por favor completa usuario, correo y contraseña.');
+    btn.disabled = false;
+    return;
+  }
+
+  try {
+    const res = await authService.register(payload);
+    // El backend devuelve { message: "Usuario registrado exitosamente" } al grabar. :contentReference[oaicite:2]{index=2}
+    if (res && res.message) {
+      alert(res.message);
+      window.location.href = '/pages/login.html';
+    } else {
+      alert('Registro fallido. Revisa los datos.');
+    }
+  } catch (err) {
+    console.error(err);
+    alert(err.message || 'Error en el servidor al registrar.');
+  } finally {
+    btn.disabled = false;
+  }
+});
+</script>
 </body>
 </html>

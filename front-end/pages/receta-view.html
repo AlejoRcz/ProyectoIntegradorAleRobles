@@ -112,24 +112,34 @@ async function loadReceta() {
   document.getElementById("tipo").innerText = receta.tipo || "";
   document.getElementById("dificultad").innerText = receta.dificultad || "";
   document.getElementById("ocasion").innerText = receta.ocasion || "";
-  document.getElementById("presupuesto").innerText = receta.presupuesto || "";
+
+  document.getElementById("presupuesto").innerText = receta.presupuestoPorPorcion !== undefined
+    ? receta.presupuestoPorPorcion
+    : "";
+
   document.getElementById("imagen-principal").src = receta.imagenes?.[0] || "/assets/placeholder.png";
   document.getElementById("promedio").innerText = receta.promedio?.toFixed?.(1) || "—";
 
   // Ingredientes
   document.getElementById("ingredientes").innerHTML = receta.ingredientes.map(i =>
     `<li class="list-group-item d-flex justify-content-between">
-      ${i.nombre} - ${i.cantidad}
-      <span class="text-muted">${i.costo} MXN</span>
-    </li>`
+       ${i.nombre} - ${i.cantidad}
+       <span class="text-muted">${i.costo} MXN</span>
+     </li>`
   ).join("");
 
-  // Pasos
-  document.getElementById("pasos").innerHTML = receta.pasos.map(p => `<li class="mb-2">${p}</li>`).join("");
+  // PASOS
+  document.getElementById("pasos").innerHTML = (receta.pasos || []).map(p =>
+    `<li class="mb-2">${typeof p === "string" ? p : (p.paso || "")}</li>`
+  ).join("");
 
   // Acciones
   const acciones = document.getElementById("acciones");
   acciones.innerHTML = "";
+
+  const token = localStorage.getItem("token");
+  const user = (() => { try { return JSON.parse(localStorage.getItem('user')); } catch { return null; } })();
+  const userId = user?.id || user?._id || null;
 
   if (token) {
     // Favorito
@@ -137,16 +147,16 @@ async function loadReceta() {
 
     // Derivar
     acciones.innerHTML += `<a class="btn btn-secondary" href="/pages/create-receta.html?parent=${receta._id}">
-        Crear receta derivada</a>`;
+      Crear receta derivada</a>`;
 
     // Si es autor
-    if (user && user._id === receta.autor?._id) {
-      acciones.innerHTML += `<a class="btn btn-warning" href="/pages/edit-receta.html?id=${receta._id}">Editar</a>`;
-      acciones.innerHTML += `<button id="delete" class="btn btn-danger">Eliminar</button>`;
+    if (userId && String(userId) === String(autorId)) {
+        acciones.innerHTML += `<a class="btn btn-warning" href="/pages/edit-receta.html?id=${receta._id}">Editar</a>`;
+        acciones.innerHTML += `<button id="delete" class="btn btn-danger">Eliminar</button>`;
     }
 
     // Validar receta (chefs/admin)
-    if (user.role === "chef" || user.role === "admin") {
+    if (user?.role === "chef" || user?.role === "admin") {
       acciones.innerHTML += `<button id="validar" class="btn btn-success">Validar receta</button>`;
     }
 
@@ -154,13 +164,11 @@ async function loadReceta() {
     acciones.innerHTML += `<button id="reportar" class="btn btn-outline-dark">Reportar receta</button>`;
   }
 
-  // Calificación
+  // resto del código (rating, comentarios, listeners) queda igual...
   renderRating(receta._id);
-
-  // Comentarios
   loadComentarios(receta._id);
 
-  // ---------------- Eventos ----------------
+  // listeners
   document.getElementById("fav")?.addEventListener("click", async () => {
     await usuarioService.addFavorite(token, receta._id);
     alert("Agregada a favoritos");
@@ -178,12 +186,12 @@ async function loadReceta() {
   });
 
   document.getElementById("reportar")?.addEventListener("click", async () => {
-    await adminService.reportar(token, receta._id);
+    await adminService.crearReporte(token, receta._id, "Reporte desde frontend");
     alert("Reporte enviado");
   });
 }
 
-// ⭐ RATING
+//RATING
 function renderRating(recetaId) {
   const cont = document.getElementById("rating");
   cont.innerHTML = "";
@@ -203,7 +211,7 @@ function renderRating(recetaId) {
   }
 }
 
-// ⭐ COMENTARIOS
+// COMENTARIOS
 async function loadComentarios(recetaId) {
   const lista = document.getElementById("comentarios");
   const datos = await comentarioService.listarPorReceta(recetaId);

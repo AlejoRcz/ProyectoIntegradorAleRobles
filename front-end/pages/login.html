@@ -47,17 +47,19 @@
 <script src="/components/navbar.js"></script>
 <script src="/components/footer.js"></script>
 
+<script src="/services/http.js"></script>
 <script src="/services/authService.js"></script>
+<script src="/pages/login.js"></script>
 
 <script>
 document.getElementById("login-form").addEventListener("submit", async (e) => {
   e.preventDefault();
 
   const fd = new FormData(e.target);
-  const identifier = fd.get("usuario");
+  const identifier = fd.get("email");
   const password = fd.get("password");
 
-  const res = await authService.login(email, password);
+  const res = await authService.login(identifier, password);
 
   if (!res || !res.token) {
     alert("Credenciales incorrectas");

@@ -95,7 +95,13 @@
           ${userLinks}
         </ul>
 
-        <ul class="navbar-nav ms-auto">
+        <ul class="navbar-nav ms-auto align-items-center">
+          <li class="nav-item me-3">
+            <button class="theme-toggle" id="theme-btn">
+              <i class="bi bi-moon"></i>
+            </button>
+          </li>
+
           ${authButtons}
         </ul>
       </div>
@@ -105,4 +111,29 @@
 
   const logoutBtn = document.getElementById("logout-btn");
   if (logoutBtn) logoutBtn.addEventListener("click", logout);
+
+  // modo oscuro
+  const themeBtn = document.getElementById("theme-btn");
+
+  const savedTheme = localStorage.getItem("theme");
+  if (savedTheme) {
+    document.documentElement.setAttribute("data-theme", savedTheme);
+    updateThemeIcon();
+  }
+
+  function updateThemeIcon() {
+    const current = document.documentElement.getAttribute("data-theme");
+    const icon = current === "dark" ? "bi-sun" : "bi-moon";
+    themeBtn.innerHTML = `<i class="bi ${icon}"></i>`;
+  }
+
+  themeBtn.addEventListener("click", () => {
+    const current = document.documentElement.getAttribute("data-theme");
+    const newTheme = current === "dark" ? "light" : "dark";
+
+    document.documentElement.setAttribute("data-theme", newTheme);
+    localStorage.setItem("theme", newTheme);
+    updateThemeIcon();
+  });
+
 })();
