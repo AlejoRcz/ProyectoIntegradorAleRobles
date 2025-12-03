@@ -3,7 +3,10 @@ const Receta = require("../models/receta");
 // Crear receta
 exports.createReceta = async (req, res) => {
     try {
-        // Calcular costo total
+        if (!req.body.ingredientes || !Array.isArray(req.body.ingredientes)) {
+            return res.status(400).json({ message: "Ingredientes inválidos" });
+        }
+
         const costoTotal = req.body.ingredientes.reduce((acc, ing) => {
             return acc + (ing.costo * (ing.cantidad || 1));
         }, 0);
@@ -19,20 +22,20 @@ exports.createReceta = async (req, res) => {
             ocasion: req.body.ocasion,
             origen: req.body.origen,
             duracion: req.body.duracion,
-            costoTotal: costoTotal,
+            costoTotal,
             presupuestoPorPorcion: req.body.presupuestoPorPorcion,
             imagenes: req.body.imagenes,
             derivadaDe: req.body.derivadaDe || null
         });
 
         await receta.save();
-
         res.status(201).json({
             message: "Receta creada correctamente",
             receta
         });
+
     } catch (error) {
-        console.log(error);
+        console.error("ERROR createReceta:", error);
         res.status(500).json({ message: "Error al crear receta" });
     }
 };
@@ -40,17 +43,16 @@ exports.createReceta = async (req, res) => {
 // Crear receta derivada
 exports.createRecetaDerivada = async (req, res) => {
     try {
-        const originalId = req.params.id;
-
-        const original = await Receta.findById(originalId);
-        if (!original)
+        const original = await Receta.findById(req.params.id);
+        if (!original) {
             return res.status(404).json({ message: "Receta original no encontrada" });
+        }
 
         const derivada = new Receta({
-            ...req.body,           // pasos e ingredientes nuevos
+            ...req.body,
             autor: req.user.id,
-            derivadaDe: originalId,
-            validada: false        // debe validarse de nuevo
+            derivadaDe: original._id,
+            validada: false
         });
 
         await derivada.save();
@@ -61,24 +63,32 @@ exports.createRecetaDerivada = async (req, res) => {
         });
 
     } catch (error) {
+        console.error("ERROR createRecetaDerivada:", error);
         res.status(500).json({ message: "Error al crear receta derivada" });
     }
 };
 
-// Obtener recetas
+// Obtener todas las recetas (listado)
 exports.getRecetas = async (req, res) => {
     try {
-        const recetas = await Receta.find().populate("autor", "username profileImage");
+        // Puedes añadir paginación/limit/skip en el futuro
+        const recetas = await Receta.find()
+            .populate("autor", "username profileImage")
+            .select("-__v");
         res.json(recetas);
     } catch (error) {
+        console.error("ERROR getRecetas:", error);
         res.status(500).json({ message: "Error al obtener recetas" });
     }
 };
 
-// Obtener receta por ID
+// Obtener una receta por ID con populates útiles
 exports.getRecetaById = async (req, res) => {
     try {
-        const receta = await Receta.findById(req.params.id).populate("autor", "username profileImage");
+        const receta = await Receta.findById(req.params.id)
+            .populate("autor", "username profileImage")
+            .populate("comentarios.usuario", "username profileImage")
+            .populate("derivadaDe", "titulo autor");
 
         if (!receta)
             return res.status(404).json({ message: "Receta no encontrada" });
@@ -86,6 +96,7 @@ exports.getRecetaById = async (req, res) => {
         res.json(receta);
 
     } catch (error) {
+        console.error("ERROR getRecetaById:", error);
         res.status(500).json({ message: "Error al obtener la receta" });
     }
 };
@@ -101,20 +112,25 @@ exports.updateReceta = async (req, res) => {
         if (receta.autor.toString() !== req.user.id)
             return res.status(403).json({ message: "No puedes editar esta receta" });
 
-        // Recalcular costo total si se actualizan ingredientes
+        // Proteger campos que no deben editar los usuarios
+        const camposNoEditables = ["autor", "validada", "derivadaDe", "_id"];
+        camposNoEditables.forEach(campo => {
+            if (req.body.hasOwnProperty(campo)) delete req.body[campo];
+        });
+
         if (req.body.ingredientes) {
             receta.costoTotal = req.body.ingredientes.reduce((acc, ing) => {
                 return acc + (ing.costo * (ing.cantidad || 1));
             }, 0);
         }
-        
-        Object.assign(receta, req.body);
 
+        Object.assign(receta, req.body);
         await receta.save();
 
         res.json({ message: "Receta actualizada", receta });
 
     } catch (error) {
+        console.error("ERROR updateReceta:", error);
         res.status(500).json({ message: "Error al editar receta" });
     }
 };
@@ -125,8 +141,9 @@ exports.deleteReceta = async (req, res) => {
         const receta = await Receta.findById(req.params.id);
 
         if (!receta)
-            return res.status(404).json({ message: "No encontrada" });
+            return res.status(404).json({ message: "Receta no encontrada" });
 
+        // Solo autor o admin
         if (receta.autor.toString() !== req.user.id && req.user.role !== "admin")
             return res.status(403).json({ message: "No autorizado" });
 
@@ -135,10 +152,10 @@ exports.deleteReceta = async (req, res) => {
         res.json({ message: "Receta eliminada" });
 
     } catch (error) {
+        console.error("ERROR deleteReceta:", error);
         res.status(500).json({ message: "Error al eliminar receta" });
     }
 };
-
 
 // Validar receta (solo chef o admin)
 exports.validarReceta = async (req, res) => {
@@ -149,11 +166,16 @@ exports.validarReceta = async (req, res) => {
             return res.status(404).json({ message: "Receta no encontrada" });
 
         receta.validada = true;
+        // opcionalmente guardamos quién y cuándo validó
+        receta.validadaPor = req.user.id;
+        receta.fechaValidacion = new Date();
+
         await receta.save();
 
-        res.json({ message: "Receta validada correctamente" });
+        res.json({ message: "Receta validada correctamente", receta });
 
     } catch (error) {
+        console.error("ERROR validarReceta:", error);
         res.status(500).json({ message: "Error al validar receta" });
     }
 };
@@ -163,7 +185,20 @@ exports.calificar = async (req, res) => {
     try {
         const receta = await Receta.findById(req.params.id);
 
-        const valor = req.body.valor;
+        if (!receta)
+            return res.status(404).json({ message: "Receta no encontrada" });
+
+        const valor = Number(req.body.valor);
+
+        if (!valor || valor < 1 || valor > 5)
+            return res.status(400).json({ message: "Valoración inválida" });
+
+        const yaCalifico = receta.calificaciones.find(
+            c => c.usuario.toString() === req.user.id
+        );
+
+        if (yaCalifico)
+            return res.status(400).json({ message: "Ya calificaste esta receta" });
 
         receta.calificaciones.push({ usuario: req.user.id, valor });
 
@@ -173,9 +208,13 @@ exports.calificar = async (req, res) => {
 
         await receta.save();
 
-        res.json({ message: "Calificación registrada", promedio: receta.promedio });
+        res.json({
+            message: "Calificación registrada",
+            promedio: receta.promedio
+        });
 
     } catch (error) {
+        console.error("ERROR calificar:", error);
         res.status(500).json({ message: "Error al calificar receta" });
     }
 };
@@ -185,6 +224,12 @@ exports.comentar = async (req, res) => {
     try {
         const receta = await Receta.findById(req.params.id);
 
+        if (!receta)
+            return res.status(404).json({ message: "Receta no encontrada" });
+
+        if (!req.body.comentario || req.body.comentario.trim().length < 3)
+            return res.status(400).json({ message: "Comentario demasiado corto" });
+
         receta.comentarios.push({
             usuario: req.user.id,
             comentario: req.body.comentario
@@ -192,9 +237,12 @@ exports.comentar = async (req, res) => {
 
         await receta.save();
 
-        res.json({ message: "Comentario agregado" });
+        // Devolver comentario con usuario poblado (opcional)
+        const ultimo = receta.comentarios[receta.comentarios.length - 1];
+        res.json({ message: "Comentario agregado", comentario: ultimo });
 
     } catch (error) {
+        console.error("ERROR comentar:", error);
         res.status(500).json({ message: "Error al comentar receta" });
     }
 };
@@ -211,11 +259,14 @@ exports.buscar = async (req, res) => {
         if (dificultad) filtros.dificultad = dificultad;
         if (ingrediente) filtros["ingredientes.nombre"] = { $regex: ingrediente, $options: "i" };
 
-        const recetas = await Receta.find(filtros).populate("autor", "username profileImage");
+        const recetas = await Receta.find(filtros)
+            .populate("autor", "username profileImage")
+            .select("-__v");
 
         res.json(recetas);
 
     } catch (error) {
+        console.error("ERROR buscar:", error);
         res.status(500).json({ message: "Error en la búsqueda" });
     }
 };
@@ -223,13 +274,16 @@ exports.buscar = async (req, res) => {
 // Recomendaciones
 exports.recomendar = async (req, res) => {
     try {
-        const recetas = await Receta.find()
+        // Recomendamos recetas validadas, ordenadas por promedio y limit 5
+        const recetas = await Receta.find({ validada: true })
             .sort({ promedio: -1 })
-            .limit(5);
+            .limit(5)
+            .populate("autor", "username profileImage");
 
         res.json(recetas);
 
     } catch (error) {
+        console.error("ERROR recomendar:", error);
         res.status(500).json({ message: "Error al obtener recomendaciones" });
     }
 };

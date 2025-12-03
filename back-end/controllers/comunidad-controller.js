@@ -5,8 +5,11 @@ const Usuario = require("../models/usuario");
 exports.rankingPopularidad = async (req, res) => {
     try {
         const recetas = await Receta.find()
-            .sort({ "calificaciones.length": -1 })
-            .limit(10)
+            [
+                { $project: { titulo: 1, autor: 1, promedio: 1, calCount: { $size: "$calificaciones" }}},
+                { $sort: { calCount: -1 }},
+                { $limit: 10 }
+            ]
             .populate("autor", "username profileImage");
 
         res.json(recetas);

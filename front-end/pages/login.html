@@ -54,7 +54,7 @@ document.getElementById("login-form").addEventListener("submit", async (e) => {
   e.preventDefault();
 
   const fd = new FormData(e.target);
-  const email = fd.get("email");
+  const identifier = fd.get("usuario");
   const password = fd.get("password");
 
   const res = await authService.login(email, password);

@@ -3,15 +3,15 @@ const Receta = require("../models/receta");
 
 // Obtener tu propio perfil
 exports.getMyProfile = async (req, res) => {
-    try {
-        const user = await Usuario.findById(req.user._id).select("-password");
-        res.json(user);
-    } catch (error) {
-        res.status(500).json({ message: "Error al obtener el perfil" });
-    }
+  try {
+    const user = await Usuario.findById(req.user._id).select("-passwordHash");
+    res.json(user);
+  } catch (error) {
+    res.status(500).json({ message: "Error al obtener el perfil" });
+  }
 };
 
-// Obtener vista pública de un usuario
+// Vista pública de usuario
 exports.getUserById = async (req, res) => {
     try {
         const user = await Usuario.findById(req.params.id)
@@ -20,14 +20,10 @@ exports.getUserById = async (req, res) => {
         if (!user)
             return res.status(404).json({ message: "Usuario no encontrado" });
 
-        // Obtener recetas públicas del usuario
         const recetas = await Receta.find({ autor: user._id })
             .select("titulo promedio imagenes validada");
 
-        res.json({
-            usuario: user,
-            recetas: recetas
-        });
+        res.json({ usuario: user, recetas });
 
     } catch (error) {
         res.status(500).json({ message: "Error al obtener perfil público" });
@@ -45,12 +41,17 @@ exports.updateProfile = async (req, res) => {
             interests: req.body.interests
         };
 
-        const updatedUser = await Usuario.findByIdAndUpdate(req.user._id, fields, { new: true });
+        const updatedUser = await Usuario.findByIdAndUpdate(
+            req.user.id,
+            fields,
+            { new: true }
+        );
 
         res.json({
             message: "Perfil actualizado correctamente",
             user: updatedUser
         });
+
     } catch (error) {
         res.status(500).json({ message: "Error al actualizar perfil" });
     }
@@ -60,10 +61,15 @@ exports.updateProfile = async (req, res) => {
 exports.followUser = async (req, res) => {
     try {
         const targetId = req.params.id;
-        const userId = req.user._id;
+        const userId = req.user.id;
 
         if (targetId === userId) {
             return res.status(400).json({ message: "No puedes seguirte a ti mismo" });
+        }
+
+        const targetUser = await Usuario.findById(targetId);
+        if (!targetUser) {
+            return res.status(404).json({ message: "Usuario no encontrado" });
         }
 
         await Usuario.findByIdAndUpdate(userId, {
@@ -85,7 +91,7 @@ exports.followUser = async (req, res) => {
 exports.unfollowUser = async (req, res) => {
     try {
         const targetId = req.params.id;
-        const userId = req.user._id;
+        const userId = req.user.id;
 
         await Usuario.findByIdAndUpdate(userId, {
             $pull: { following: targetId }
@@ -102,12 +108,12 @@ exports.unfollowUser = async (req, res) => {
     }
 };
 
-// Añadir receta a favoritos
+// Añadir favorito
 exports.addFavorite = async (req, res) => {
     try {
         const recetaId = req.params.id;
 
-        await Usuario.findByIdAndUpdate(req.user._id, {
+        await Usuario.findByIdAndUpdate(req.user.id, {
             $addToSet: { favoritos: recetaId }
         });
 
@@ -118,13 +124,12 @@ exports.addFavorite = async (req, res) => {
     }
 };
 
-
-// Quitar receta de favoritos
+// Quitar favorito
 exports.removeFavorite = async (req, res) => {
     try {
         const recetaId = req.params.id;
 
-        await Usuario.findByIdAndUpdate(req.user._id, {
+        await Usuario.findByIdAndUpdate(req.user.id, {
             $pull: { favoritos: recetaId }
         });
 
@@ -135,11 +140,10 @@ exports.removeFavorite = async (req, res) => {
     }
 };
 
-
-// Listar mis favoritos
+// Listar favoritos
 exports.getFavorites = async (req, res) => {
     try {
-        const user = await Usuario.findById(req.user._id)
+        const user = await Usuario.findById(req.user.id)
             .populate("favoritos");
 
         res.json(user.favoritos);

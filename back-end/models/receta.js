@@ -1,114 +1,52 @@
 const mongoose = require("mongoose");
 
+const comentarioSchema = new mongoose.Schema({
+    usuario: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
+    comentario: { type: String, required: true },
+    fecha: { type: Date, default: Date.now }
+});
+
+const calificacionSchema = new mongoose.Schema({
+    usuario: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
+    valor: { type: Number, min: 1, max: 5, required: true }
+});
+
+const ingredienteSchema = new mongoose.Schema({
+    nombre: String,
+    cantidad: Number,
+    costo: Number
+});
+
 const recetaSchema = new mongoose.Schema({
-    titulo: {
-        type: String,
-        required: true
-    },
+    titulo: { type: String, required: true },
+    descripcion: String,
+    autor: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
 
-    descripcion: {
-        type: String,
-        default: ""
-    },
+    ingredientes: [ingredienteSchema],
+    pasos: [String],
 
-    autor: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "Usuario",
-        required: true
-    },
+    tipo: String,
+    dificultad: String,
+    ocasion: String,
+    origen: String,
+    duracion: Number,
 
-    // Ingredientes: nombre, cantidad, costo
-    ingredientes: [
-        {
-            nombre: String,
-            cantidad: String,
-            costo: Number
-        }
-    ],
+    costoTotal: { type: Number, default: 0 },
+    presupuestoPorPorcion: Number,
 
-    pasos: [
-        {
-            paso: String
-        }
-    ],
+    imagenes: [String],
 
-    tipo: {
-        type: String,
-        required: true // desayuno, almuerzo, cena, postre...
-    },
+    promedio: { type: Number, default: 0 },
+    calificaciones: [calificacionSchema],
+    comentarios: [comentarioSchema],
 
-    dificultad: {
-        type: String,
-        enum: ["Fácil", "Media", "Difícil"],
-        required: true
-    },
+    derivadaDe: { type: mongoose.Schema.Types.ObjectId, ref: "Receta", default: null },
 
-    ocasion: {
-        type: String,
-        default: ""
-    },
+    validada: { type: Boolean, default: false },
+    validadaPor: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
+    fechaValidacion: { type: Date, default: null },
 
-    origen: {
-        type: String,
-        default: ""
-    },
-
-    duracion: {
-        type: Number, // minutos
-        required: true
-    },
-
-    costoTotal: { 
-        type: Number,
-        default: 0 
-    },
-
-    presupuestoPorPorcion: {
-        type: Number,
-        required: true
-    },
-
-    imagenes: {
-        type: [String], // hasta 3 URLs
-        validate: arr => arr.length <= 3
-    },
-
-    validada: {
-        type: Boolean,
-        default: false
-    },
-
-    derivadaDe: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "Receta",
-        default: null
-    },
-
-    // Calificaciones
-    calificaciones: [
-        {
-            usuario: { type: mongoose.Schema.Types.ObjectId, ref: "Usuario" },
-            valor: Number
-        }
-    ],
-
-    // Comentarios
-    comentarios: [
-        {
-            usuario: { type: mongoose.Schema.Types.ObjectId, ref: "Usuario" },
-            comentario: String,
-            fecha: { type: Date, default: Date.now }
-        }
-    ],
-
-    // Puntuación total
-    promedio: {
-        type: Number,
-        default: 0
-    }
-
-}, {
-    timestamps: true
+    fechaCreacion: { type: Date, default: Date.now }
 });
 
 module.exports = mongoose.model("Receta", recetaSchema);

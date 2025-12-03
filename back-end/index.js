@@ -24,6 +24,16 @@ app.use(bodyParser.urlencoded({extended:true}));
 app.use(bodyParser.json());//Habilita el anÃ¡lisis de JSON en las peticiones 
 app.use(cors());
 
+const path = require("path");
+
+// -------- SERVIR FRONT-END ----------
+app.use(express.static(path.join(__dirname, "../front-end")));
+
+// Ruta principal que sirve index.html
+app.get("/", (req, res) => {
+  res.sendFile(path.join(__dirname, "../front-end/index.html"));
+});
+
 mongoose.connect(process.env.MONGODB_URI)
     .then(()=> console.log('MongoDB Atlas conectado'))
     .catch(error => console.log('Error al conectarse con MongoDB: ', error));
