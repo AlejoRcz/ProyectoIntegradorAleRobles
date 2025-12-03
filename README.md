@@ -51,3 +51,22 @@ Crear una solución web integral que facilite la organización culinaria y mejor
 - **Chef / Experto culinario:** crea, edita y valida recetas.  
 - **Usuario regular:** busca, guarda, califica y personaliza recetas.  
 - **Administrador:** modera contenido y gestiona métricas del sistema.
+
+## Base de Datos
+Formas de usarla en ENDPOINTS.md y con Thunder Client.
+
+## Dependencias
+
+- express
+- mongoose
+- cors
+- body-parser
+- jsonwebtoken
+- dotenv
+
+## Como utilizarlo
+
+- Descarga y abre el archivo con Visual Studio
+- Ejecuta el servidor usando: node index.js
+- Copia http://localhost:3000 en su navegador.
+- A disfrutar.
