@@ -92,102 +92,141 @@
   <script src="/components/footer.js"></script>
 
   <script src="/services/recetasService.js"></script>
+  <script src="/services/http.js"></script>
 
   <script>
-    const token = localStorage.getItem("token");
-    if (!token) {
-      alert("Debes iniciar sesión para crear recetas.");
-      window.location.href = "/pages/login.html";
+  const token = localStorage.getItem("token");
+  if (!token) {
+    alert("Debes iniciar sesión para crear recetas.");
+    window.location.href = "/pages/login.html";
+  }
+
+  // Helpers
+  const ingredientesRoot = document.getElementById('ingredientes-root');
+  const pasosRoot = document.getElementById('pasos-root');
+
+  function addIngrediente({ nombre = '', cantidad = '', costo = '' } = {}) {
+    const wrapper = document.createElement('div');
+    wrapper.className = 'd-flex gap-2 mb-2';
+    wrapper.innerHTML = `
+      <input type="text" class="form-control" placeholder="Nombre" data-role="ing-nombre" value="${nombre}">
+      <input type="number" class="form-control" placeholder="Cantidad" min="0" step="0.1" data-role="ing-cantidad" value="${cantidad}">
+      <input type="number" class="form-control" placeholder="Costo" min="0" step="0.01" data-role="ing-costo" value="${costo}">
+      <button type="button" class="btn btn-outline-danger btn-sm" data-action="remove">x</button>
+    `;
+    wrapper.querySelector('[data-action="remove"]').addEventListener('click', () => wrapper.remove());
+    ingredientesRoot.appendChild(wrapper);
+  }
+
+  function addPaso(text = '') {
+    const wrapper = document.createElement('div');
+    wrapper.className = 'd-flex gap-2 mb-2';
+    wrapper.innerHTML = `
+      <textarea class="form-control" rows="1" placeholder="Descripción del paso">${text}</textarea>
+      <button type="button" class="btn btn-outline-danger btn-sm">x</button>
+    `;
+    wrapper.querySelector('button').addEventListener('click', () => wrapper.remove());
+    pasosRoot.appendChild(wrapper);
+  }
+
+  // Inicial
+  addIngrediente();
+  addPaso();
+  document.getElementById('add-ingrediente').addEventListener('click', () => addIngrediente());
+  document.getElementById('add-paso').addEventListener('click', () => addPaso());
+
+  // Submit mejorado
+  document.getElementById('receta-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const form = e.target;
+
+    // validaciones cliente mínimas
+    const titulo = form.titulo.value.trim();
+    if (!titulo) { alert('El título es obligatorio'); return; }
+
+    const duracion = Number(form.duracion.value);
+    if (isNaN(duracion) || duracion <= 0) { alert('Duración inválida'); return; }
+
+    const presupuestoPorPorcion = Number(form.presupuestoPorPorcion.value);
+    if (isNaN(presupuestoPorPorcion) || presupuestoPorPorcion < 0) { alert('Presupuesto inválido'); return; }
+
+    // Construir payload
+    const payload = {
+      titulo,
+      descripcion: form.descripcion.value.trim(),
+      tipo: form.tipo.value,
+      dificultad: form.dificultad.value,
+      duracion,
+      presupuestoPorPorcion,
+      imagenes: [],
+      ingredientes: [],
+      pasos: []
+    };
+
+    // imágenes
+    for (let i = 0; i < 3; i++) {
+      const el = form[`imagen-${i}`];
+      if (!el) continue;
+      const url = (el.value || '').trim();
+      if (url) payload.imagenes.push(url);
     }
 
-    // Helpers para crear inputs dinámicos
-    const ingredientesRoot = document.getElementById('ingredientes-root');
-    const pasosRoot = document.getElementById('pasos-root');
+    // ingredientes
+    payload.ingredientes = Array.from(ingredientesRoot.children).map(w => {
+      const nombre = (w.querySelector('[data-role="ing-nombre"]').value || '').trim();
+      const cantidadRaw = w.querySelector('[data-role="ing-cantidad"]').value;
+      const costoRaw = w.querySelector('[data-role="ing-costo"]').value;
+      const cantidad = cantidadRaw === '' ? 1 : Number(cantidadRaw);
+      const costo = costoRaw === '' ? 0 : Number(costoRaw);
+      return { nombre, cantidad, costo };
+    }).filter(i => i.nombre && !isNaN(i.cantidad) && !isNaN(i.costo));
 
-    function addIngrediente({ nombre = '', cantidad = '', costo = '' } = {}) {
-      const idx = Date.now() + Math.random();
-      const wrapper = document.createElement('div');
-      wrapper.className = 'd-flex gap-2 mb-2';
-      wrapper.innerHTML = `
-        <input class="form-control" placeholder="Nombre" data-role="ing-nombre" value="${nombre}">
-        <input class="form-control" placeholder="Cantidad" data-role="ing-cantidad" value="${cantidad}">
-        <input class="form-control" placeholder="Costo" type="number" min="0" step="0.01" data-role="ing-costo" value="${costo}">
-        <button type="button" class="btn btn-outline-danger btn-sm" data-action="remove">x</button>
-      `;
-      wrapper.querySelector('[data-action="remove"]').addEventListener('click', () => wrapper.remove());
-      ingredientesRoot.appendChild(wrapper);
+    if (payload.ingredientes.length === 0) {
+      alert('Añade al menos un ingrediente con nombre válido.');
+      return;
     }
 
-    function addPaso(text = '') {
-      const wrapper = document.createElement('div');
-      wrapper.className = 'd-flex gap-2 mb-2';
-      wrapper.innerHTML = `
-        <textarea class="form-control" rows="1" placeholder="Descripción del paso">${text}</textarea>
-        <button type="button" class="btn btn-outline-danger btn-sm">x</button>
-      `;
-      wrapper.querySelector('button').addEventListener('click', () => wrapper.remove());
-      pasosRoot.appendChild(wrapper);
+    // pasos
+    payload.pasos = Array.from(pasosRoot.children)
+    .map(w => w.querySelector('textarea').value.trim())
+    .filter(texto => texto.length > 0);
+
+    if (payload.pasos.length === 0) {
+      alert('Añade al menos un paso.');
+      return;
     }
 
-    // inicial
-    addIngrediente();
-    addPaso();
+    // Log para debugging
+    console.log('Token:', token);
+    console.log('Payload receta:', payload);
 
-    document.getElementById('add-ingrediente').addEventListener('click', () => addIngrediente());
-    document.getElementById('add-paso').addEventListener('click', () => addPaso());
+    try {
+      const res = await recetasService.create(token, payload);
 
-    // submit
-    document.getElementById('receta-form').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const form = e.target;
+      // recetasService usa Http.request que lanza excepción si status != ok
+      // Si no lanzó excepción, res es el JSON de respuesta
+      console.log('Respuesta servidor:', res);
 
-      const titulo = form.titulo.value.trim();
-      const descripcion = form.descripcion.value.trim();
-      const tipo = form.tipo.value;
-      const dificultad = form.dificultad.value;
-      const duracion = Number(form.duracion.value);
-      const presupuestoPorPorcion = Number(form.presupuestoPorPorcion.value);
-
-      // imágenes
-      const imagenes = [];
-      for (let i=0;i<3;i++){
-        const val = form[`imagen-${i}`].value.trim();
-        if (val) imagenes.push(val);
+      if (res && res.receta) {
+        alert('Receta creada correctamente');
+        window.location.href = `/pages/receta-view.html?id=${res.receta._id}`;
+      } else {
+        // si backend responde OK pero sin objeto receta
+        alert('Respuesta inesperada del servidor. Revisa consola.');
+        console.error('Respuesta inesperada:', res);
       }
-
-      // ingredientes
-      const ingredientes = Array.from(ingredientesRoot.children).map(w => {
-        const nombre = w.querySelector('[data-role="ing-nombre"]').value.trim();
-        const cantidad = w.querySelector('[data-role="ing-cantidad"]').value.trim();
-        const costo = Number(w.querySelector('[data-role="ing-costo"]').value) || 0;
-        return { nombre, cantidad, costo };
-      }).filter(i => i.nombre);
-
-      // pasos
-      const pasos = Array.from(pasosRoot.children).map(w => {
-        const texto = w.querySelector('textarea').value.trim();
-        return { paso: texto };
-      }).filter(p => p.paso);
-
-      const payload = {
-        titulo, descripcion, tipo, dificultad, duracion, presupuestoPorPorcion,
-        imagenes, ingredientes, pasos
-      };
-
-      try {
-        const res = await recetasService.create(token, payload);
-        if (res && res.receta) {
-          alert('Receta creada');
-          window.location.href = `/pages/receta-view.html?id=${res.receta._id}`;
-        } else {
-          alert('Error al crear la receta');
-          console.error(res);
-        }
-      } catch (err) {
-        console.error(err);
-        alert('Ocurrió un error creando la receta');
+    } catch (err) {
+      // err viene del Http.request: Error con message = data.message || data.error || JSON
+      console.error('Error al crear receta (capturado):', err);
+      // Mostrar mensaje del servidor si viene
+      if (err && err.message) {
+        alert('Error creando receta: ' + err.message);
+      } else {
+        alert('Error creando receta (sin mensaje). Revisa consola.');
       }
-    });
-  </script>
+    }
+  });
+</script>
+
 </body>
 </html>

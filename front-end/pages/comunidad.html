@@ -86,6 +86,7 @@
   <script src="/components/navbar.js"></script>
   <script src="/components/footer.js"></script>
 
+  <script src="/services/http.js"></script>
   <script src="/services/comunidadService.js"></script>
   <script src="/services/eventoService.js"></script>
   <script src="/services/recetasService.js"></script>
@@ -121,7 +122,9 @@
       const chefs = await comunidadService.rankingCocineros();
       document.getElementById("rank-chefs").innerHTML = (chefs || []).map(c => `
         <li class="list-group-item d-flex justify-content-between">
-          <a href="/pages/profile.html?id=${c._id}" class="text-decoration-none">@${c.username || c._id}</a>
+          <a href="/pages/profile.html?id=${c._id._id}" class="text-decoration-none">
+            @${c._id.username}
+          </a>
           <span>${c.total || 0} recetas</span>
         </li>
       `).join('') || '<li class="list-group-item text-muted">No hay datos.</li>';

@@ -82,51 +82,66 @@
 
   <script src="/services/usuarioService.js"></script>
   <script src="/services/recetasService.js"></script>
+  <script src="/services/http.js"></script>
 
-  <script>
+<script>
+  (function () {
     const token = localStorage.getItem('token');
     if (!token) {
-      // si no está autenticado, redirigir al login
       window.location.href = '/pages/login.html';
+      return;
     }
 
     const form = document.getElementById('profile-form');
 
     async function loadProfile() {
       try {
-        const me = await authService.getMyProfile?.(token) || await fetch('/api/usuarios/me', { headers: { 'Authorization': `Bearer ${token}` } }).then(r=>r.json());
-        // me contiene el usuario
+        // obtener perfil (usa endpoint /api/usuarios/me)
+        const res = await fetch('/api/usuarios/me', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        const me = await res.json();
+        if (!res.ok) {
+          throw new Error(me.message || 'No se pudo cargar perfil');
+        }
+
+        // Mostrar datos visibles
         document.getElementById('profile-image').src = me.profileImage || '/assets/placeholder.png';
         document.getElementById('profile-username').innerText = '@' + (me.username || '');
         document.getElementById('profile-name').innerText = me.name || '';
         document.getElementById('profile-bio').innerText = me.bio || '';
 
-        // llenar formulario
+        // Llenar form (si interests es array, convertir a CSV)
         form.username.value = me.username || '';
         form.name.value = me.name || '';
         form.country.value = me.country || '';
         form.bio.value = me.bio || '';
-        form.interests.value = me.interests || '';
+        form.interests.value = Array.isArray(me.interests) ? me.interests.join(', ') : (me.interests || '');
 
-        // favoritos
-        const favs = await usuarioService.getFavorites(token);
-        const favContainer = document.getElementById('favorites-list');
-        if (!favs || favs.length === 0) favContainer.innerHTML = '<div class="col-12 text-muted">No tienes favoritos aún.</div>';
-        else favContainer.innerHTML = favs.map(r => `
-          <div class="col-12 col-md-6">
-            <div class="card h-100">
-              <div class="row g-0">
-                <div class="col-4"><img src="${r.imagenes?.[0]||'/assets/placeholder.png'}" class="img-fluid rounded-start"></div>
-                <div class="col-8 p-2">
-                  <h6 class="mb-1">${r.titulo}</h6>
-                  <a href="/pages/receta-view.html?id=${r._id}" class="small">Ver receta</a>
+        // Favoritos (usa usuarioService)
+        try {
+          const favs = await usuarioService.getFavorites(token);
+          const favContainer = document.getElementById('favorites-list');
+          if (!favs || favs.length === 0) favContainer.innerHTML = '<div class="col-12 text-muted">No tienes favoritos aún.</div>';
+          else favContainer.innerHTML = favs.map(r => `
+            <div class="col-12 col-md-6">
+              <div class="card h-100">
+                <div class="row g-0">
+                  <div class="col-4"><img src="${r.imagenes?.[0]||'/assets/placeholder.png'}" class="img-fluid rounded-start"></div>
+                  <div class="col-8 p-2">
+                    <h6 class="mb-1">${r.titulo}</h6>
+                    <a href="/pages/receta-view.html?id=${r._id}" class="small">Ver receta</a>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-        `).join('');
+          `).join('');
+        } catch (err) {
+          console.error('Error cargando favoritos', err);
+        }
 
-        // followers/following (simplificado: usamos los arrays que vienen en me)
+        // Followers / following
         const folSection = document.getElementById('followers-section');
         const followers = me.followers || [];
         const following = me.following || [];
@@ -134,7 +149,6 @@
           <div class="col-12"><small>Seguidores: ${followers.length}</small></div>
           <div class="col-12"><small>Siguiendo: ${following.length}</small></div>
         `;
-
       } catch (err) {
         console.error(err);
         alert('Error cargando perfil.');
@@ -143,27 +157,32 @@
 
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
+
       const fd = new FormData(form);
-      const payload = {
-        username: fd.get('username'),
-        profileImage: undefined, // si quieres subir, lo permitimos como URL en el campo profileImage adicional
-        country: fd.get('country'),
-        bio: fd.get('bio'),
-        interests: fd.get('interests')
-      };
+
+      // Construir payload: incluir sólo campos no vacíos
+      const payload = {};
+      if (fd.get('username')) payload.username = fd.get('username').trim();
+      if (fd.get('name')) payload.name = fd.get('name').trim();
+      if (fd.get('country')) payload.country = fd.get('country').trim();
+      if (fd.get('bio')) payload.bio = fd.get('bio').trim();
+      if (fd.get('interests')) payload.interests = fd.get('interests').trim(); // backend convertirá a array
+
       try {
+        // usuarioService.updateProfile lanza error si Http.request falla
         const res = await usuarioService.updateProfile(token, payload);
+
+        // Si llegamos aquí, res es el JSON de respuesta
         if (res && res.message) {
           alert(res.message);
-          // refrescar
-          loadProfile();
-          localStorage.setItem('user', JSON.stringify(res.user || {}));
+          if (res.user) localStorage.setItem('user', JSON.stringify(res.user));
+          await loadProfile();
         } else {
-          alert('Error al actualizar.');
+          alert('No se pudo actualizar el perfil.');
         }
       } catch (err) {
-        console.error(err);
-        alert('Ocurrió un error al guardar.');
+        console.error('Error al actualizar perfil:', err);
+        alert(err?.message || 'Ocurrió un error al guardar.');
       }
     });
 
@@ -171,7 +190,10 @@
       window.location.href = '/pages/recetas-list.html?favorites=1';
     });
 
+    // inicializar
     loadProfile();
-  </script>
+  })();
+</script>
+
 </body>
 </html>

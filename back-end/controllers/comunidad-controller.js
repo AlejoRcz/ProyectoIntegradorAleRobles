@@ -4,16 +4,28 @@ const Usuario = require("../models/usuario");
 // Ranking por popularidad (más calificaciones)
 exports.rankingPopularidad = async (req, res) => {
     try {
-        const recetas = await Receta.find()
-            [
-                { $project: { titulo: 1, autor: 1, promedio: 1, calCount: { $size: "$calificaciones" }}},
-                { $sort: { calCount: -1 }},
-                { $limit: 10 }
-            ]
-            .populate("autor", "username profileImage");
+        const recetas = await Receta.aggregate([
+            {
+                $project: {
+                    titulo: 1,
+                    autor: 1,
+                    promedio: 1,
+                    calCount: { $size: "$calificaciones" }
+                }
+            },
+            { $sort: { calCount: -1 } },
+            { $limit: 10 }
+        ]);
 
-        res.json(recetas);
+        // Populate correcto del autor
+        const result = await Usuario.populate(recetas, {
+            path: "autor",
+            select: "username profileImage"
+        });
+
+        res.json(result);
     } catch (error) {
+        console.error("ERROR rankingPopularidad:", error);
         res.status(500).json({ message: "Error al obtener ranking de popularidad" });
     }
 };

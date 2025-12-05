@@ -92,6 +92,7 @@
 <script src="/services/usuarioService.js"></script>
 <script src="/services/comentarioService.js"></script>
 <script src="/services/adminService.js"></script>
+<script src="/services/http.js"></script>
 
 <script>
 const params = new URLSearchParams(window.location.search);
@@ -103,68 +104,85 @@ try { user = JSON.parse(localStorage.getItem("user")); } catch {}
 
 async function loadReceta() {
   const receta = await recetasService.getById(id);
+
   document.getElementById("loading").classList.add("d-none");
   document.getElementById("content").classList.remove("d-none");
 
-  // Datos generales
+  // Datos básicos
   document.getElementById("titulo").innerText = receta.titulo;
   document.getElementById("descripcion").innerText = receta.descripcion || "";
   document.getElementById("tipo").innerText = receta.tipo || "";
   document.getElementById("dificultad").innerText = receta.dificultad || "";
   document.getElementById("ocasion").innerText = receta.ocasion || "";
+  document.getElementById("presupuesto").innerText =
+    receta.presupuestoPorPorcion ?? "";
 
-  document.getElementById("presupuesto").innerText = receta.presupuestoPorPorcion !== undefined
-    ? receta.presupuestoPorPorcion
-    : "";
+  document.getElementById("imagen-principal").src =
+    receta.imagenes?.[0] || "/assets/placeholder.png";
 
-  document.getElementById("imagen-principal").src = receta.imagenes?.[0] || "/assets/placeholder.png";
-  document.getElementById("promedio").innerText = receta.promedio?.toFixed?.(1) || "—";
+  document.getElementById("promedio").innerText =
+    typeof receta.promedio === "number"
+      ? receta.promedio.toFixed(1)
+      : "—";
 
   // Ingredientes
-  document.getElementById("ingredientes").innerHTML = receta.ingredientes.map(i =>
-    `<li class="list-group-item d-flex justify-content-between">
-       ${i.nombre} - ${i.cantidad}
-       <span class="text-muted">${i.costo} MXN</span>
-     </li>`
-  ).join("");
+  document.getElementById("ingredientes").innerHTML =
+    receta.ingredientes.map(i =>
+      `<li class="list-group-item d-flex justify-content-between">
+         ${i.nombre} - ${i.cantidad}
+         <span class="text-muted">${i.costo} MXN</span>
+       </li>`
+    ).join("");
 
-  // PASOS
-  document.getElementById("pasos").innerHTML = (receta.pasos || []).map(p =>
-    `<li class="mb-2">${typeof p === "string" ? p : (p.paso || "")}</li>`
-  ).join("");
+  // PASOS — acepta texto viejo y nuevo
+  document.getElementById("pasos").innerHTML =
+    (receta.pasos || []).map(p =>
+      `<li class="mb-2">${typeof p === "string" ? p : (p.texto || p.paso || "")}</li>`
+    ).join("");
 
-  // Acciones
+  // ACCIONES
   const acciones = document.getElementById("acciones");
   acciones.innerHTML = "";
 
-  const token = localStorage.getItem("token");
-  const user = (() => { try { return JSON.parse(localStorage.getItem('user')); } catch { return null; } })();
+  const user = (() => {
+    try { return JSON.parse(localStorage.getItem('user')); }
+    catch { return null; }
+  })();
   const userId = user?.id || user?._id || null;
 
+  // FIX: definir autorId siempre
+  const autorId = receta.autor?._id || receta.autor || null;
+
   if (token) {
-    // Favorito
-    acciones.innerHTML += `<button id="fav" class="btn btn-outline-danger"><i class="bi bi-heart"></i></button>`;
+    acciones.innerHTML += `
+      <button id="fav" class="btn btn-outline-danger">
+        <i class="bi bi-heart"></i>
+      </button>`;
 
-    // Derivar
-    acciones.innerHTML += `<a class="btn btn-secondary" href="/pages/create-receta.html?parent=${receta._id}">
-      Crear receta derivada</a>`;
+    acciones.innerHTML += `
+      <a class="btn btn-secondary" href="/pages/create-receta.html?parent=${receta._id}">
+        Crear receta derivada
+      </a>`;
 
-    // Si es autor
+    // Si el usuario es el autor → mostrar editar y eliminar
     if (userId && String(userId) === String(autorId)) {
-        acciones.innerHTML += `<a class="btn btn-warning" href="/pages/edit-receta.html?id=${receta._id}">Editar</a>`;
-        acciones.innerHTML += `<button id="delete" class="btn btn-danger">Eliminar</button>`;
+      acciones.innerHTML += `
+        <a class="btn btn-warning" href="/pages/edit-receta.html?id=${receta._id}">
+          Editar
+        </a>`;
+      acciones.innerHTML += `
+        <button id="delete" class="btn btn-danger">Eliminar</button>`;
     }
 
-    // Validar receta (chefs/admin)
     if (user?.role === "chef" || user?.role === "admin") {
-      acciones.innerHTML += `<button id="validar" class="btn btn-success">Validar receta</button>`;
+      acciones.innerHTML += `
+        <button id="validar" class="btn btn-success">Validar receta</button>`;
     }
 
-    // Reportar
     acciones.innerHTML += `<button id="reportar" class="btn btn-outline-dark">Reportar receta</button>`;
   }
 
-  // resto del código (rating, comentarios, listeners) queda igual...
+  // rating y comentarios
   renderRating(receta._id);
   loadComentarios(receta._id);
 
@@ -191,15 +209,13 @@ async function loadReceta() {
   });
 }
 
-//RATING
 function renderRating(recetaId) {
   const cont = document.getElementById("rating");
   cont.innerHTML = "";
-
   for (let i = 1; i <= 5; i++) {
     const star = document.createElement("i");
     star.className = "bi bi-star";
-    star.setAttribute("data-value", i);
+    star.dataset.value = i;
     star.style.cursor = "pointer";
     star.onclick = async () => {
       if (!token) return alert("Debes iniciar sesión.");
@@ -211,26 +227,26 @@ function renderRating(recetaId) {
   }
 }
 
-// COMENTARIOS
 async function loadComentarios(recetaId) {
   const lista = document.getElementById("comentarios");
   const datos = await comentarioService.listarPorReceta(recetaId);
 
+  console.log("Comentarios normalizados:", datos); // útil para depuración
+
   lista.innerHTML = datos.map(c =>
     `<li class="list-group-item">
-      <strong>${c.usuario?.username || "Usuario"}</strong><br>
-      ${c.texto}
+      <strong>${c.usuario || 'Usuario'}</strong><br>
+      ${c.texto || '(sin texto)'}
       <div class="small text-muted">${new Date(c.fecha).toLocaleString()}</div>
     </li>`
   ).join("");
 }
 
-document.getElementById("comment-form").addEventListener("submit", async (e) => {
+document.getElementById("comment-form").addEventListener("submit", async e => {
   e.preventDefault();
-  const texto = document.getElementById("comment-text").value.trim();
-  if (!texto) return;
-
-  await comentarioService.crear(token, id, texto);
+  const txt = document.getElementById("comment-text").value.trim();
+  if (!txt) return;
+  await comentarioService.crear(token, id, txt);
   document.getElementById("comment-text").value = "";
   loadComentarios(id);
 });

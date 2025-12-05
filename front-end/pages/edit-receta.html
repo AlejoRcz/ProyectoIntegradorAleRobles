@@ -3,17 +3,20 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Crear Receta – Robles Gastro Lab</title>
+  <title id="page-title">Editar Receta – Robles Gastro Lab</title>
+
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.5/font/bootstrap-icons.css" rel="stylesheet">
   <link rel="stylesheet" href="/css/styles.css">
 </head>
+
 <body>
   <div id="navbar-root"></div>
 
   <main class="container py-4">
     <div class="card p-3 shadow">
-      <h3>Crear nueva receta</h3>
+      <h3 id="form-title">Editar receta</h3>
+
       <form id="receta-form" class="row g-3">
 
         <div class="col-md-6">
@@ -55,24 +58,24 @@
           <textarea name="descripcion" class="form-control" rows="3"></textarea>
         </div>
 
-        <!-- IMÁGENES -> URLs -->
+        <!-- IMÁGENES -->
         <div class="col-12">
-          <label class="form-label">Imágenes (URLs) — hasta 3</label>
+          <label class="form-label">Imágenes (URLs)</label>
           <div id="imagenes-list" class="d-flex gap-2">
-            <input name="imagen-0" class="form-control" placeholder="URL imagen 1">
-            <input name="imagen-1" class="form-control" placeholder="URL imagen 2">
-            <input name="imagen-2" class="form-control" placeholder="URL imagen 3">
+            <input name="imagen-0" class="form-control" placeholder="URL 1">
+            <input name="imagen-1" class="form-control" placeholder="URL 2">
+            <input name="imagen-2" class="form-control" placeholder="URL 3">
           </div>
         </div>
 
-        <!-- INGREDIENTES DINÁMICOS -->
+        <!-- INGREDIENTES -->
         <div class="col-12">
           <label class="form-label">Ingredientes</label>
           <div id="ingredientes-root" class="mb-2"></div>
           <button id="add-ingrediente" type="button" class="btn btn-sm btn-outline-primary">+ Añadir ingrediente</button>
         </div>
 
-        <!-- PASOS DINÁMICOS -->
+        <!-- PASOS -->
         <div class="col-12">
           <label class="form-label">Pasos</label>
           <div id="pasos-root" class="mb-2"></div>
@@ -80,7 +83,7 @@
         </div>
 
         <div class="col-12 text-end">
-          <button class="btn btn-success">Crear receta</button>
+          <button class="btn btn-success" id="submit-btn">Guardar cambios</button>
         </div>
       </form>
     </div>
@@ -92,102 +95,142 @@
   <script src="/components/footer.js"></script>
 
   <script src="/services/recetasService.js"></script>
+  <script src="/services/http.js"></script>
 
   <script>
     const token = localStorage.getItem("token");
     if (!token) {
-      alert("Debes iniciar sesión para crear recetas.");
+      alert("Debes iniciar sesión.");
       window.location.href = "/pages/login.html";
     }
 
-    // Helpers para crear inputs dinámicos
-    const ingredientesRoot = document.getElementById('ingredientes-root');
-    const pasosRoot = document.getElementById('pasos-root');
+    const params = new URLSearchParams(window.location.search);
+    const recetaId = params.get("id");
 
-    function addIngrediente({ nombre = '', cantidad = '', costo = '' } = {}) {
-      const idx = Date.now() + Math.random();
-      const wrapper = document.createElement('div');
-      wrapper.className = 'd-flex gap-2 mb-2';
+    const form = document.getElementById("receta-form");
+    const ingredientesRoot = document.getElementById("ingredientes-root");
+    const pasosRoot = document.getElementById("pasos-root");
+
+    // Helpers dinámicos
+    function addIngrediente({ nombre = "", cantidad = "", costo = "" } = {}) {
+      const wrapper = document.createElement("div");
+      wrapper.className = "d-flex gap-2 mb-2";
       wrapper.innerHTML = `
         <input class="form-control" placeholder="Nombre" data-role="ing-nombre" value="${nombre}">
         <input class="form-control" placeholder="Cantidad" data-role="ing-cantidad" value="${cantidad}">
-        <input class="form-control" placeholder="Costo" type="number" min="0" step="0.01" data-role="ing-costo" value="${costo}">
-        <button type="button" class="btn btn-outline-danger btn-sm" data-action="remove">x</button>
+        <input class="form-control" placeholder="Costo" type="number" step="0.01" data-role="ing-costo" value="${costo}">
+        <button type="button" class="btn btn-outline-danger btn-sm">x</button>
       `;
-      wrapper.querySelector('[data-action="remove"]').addEventListener('click', () => wrapper.remove());
+      wrapper.querySelector("button").onclick = () => wrapper.remove();
       ingredientesRoot.appendChild(wrapper);
     }
 
-    function addPaso(text = '') {
-      const wrapper = document.createElement('div');
-      wrapper.className = 'd-flex gap-2 mb-2';
+    function addPaso(text = "") {
+      const wrapper = document.createElement("div");
+      wrapper.className = "d-flex gap-2 mb-2";
       wrapper.innerHTML = `
-        <textarea class="form-control" rows="1" placeholder="Descripción del paso">${text}</textarea>
+        <textarea class="form-control" rows="1">${text}</textarea>
         <button type="button" class="btn btn-outline-danger btn-sm">x</button>
       `;
-      wrapper.querySelector('button').addEventListener('click', () => wrapper.remove());
+      wrapper.querySelector("button").onclick = () => wrapper.remove();
       pasosRoot.appendChild(wrapper);
     }
 
-    // inicial
-    addIngrediente();
-    addPaso();
+    // Si es EDITAR → cargar datos
+    async function loadReceta() {
+      if (!recetaId) return;
 
-    document.getElementById('add-ingrediente').addEventListener('click', () => addIngrediente());
-    document.getElementById('add-paso').addEventListener('click', () => addPaso());
+      const receta = await recetasService.getById(recetaId);
 
-    // submit
-    document.getElementById('receta-form').addEventListener('submit', async (e) => {
+      document.getElementById("form-title").innerText = "Editar receta";
+      document.getElementById("page-title").innerText = "Editar receta";
+      document.getElementById("submit-btn").innerText = "Guardar cambios";
+
+      form.titulo.value = receta.titulo;
+      form.tipo.value = receta.tipo;
+      form.dificultad.value = receta.dificultad;
+      form.duracion.value = receta.duracion;
+      form.presupuestoPorPorcion.value = receta.presupuestoPorPorcion;
+      form.descripcion.value = receta.descripcion;
+
+      // Imágenes
+      (receta.imagenes || []).forEach((img, i) => {
+        const input = form[`imagen-${i}`];
+        if (input) input.value = img;
+      });
+
+      // Ingredientes
+      ingredientesRoot.innerHTML = "";
+      receta.ingredientes.forEach(i => addIngrediente(i));
+
+      // Pasos
+      pasosRoot.innerHTML = "";
+      receta.pasos.forEach(p => addPaso(p));
+
+    }
+
+    loadReceta();
+
+    // BOTÓN AÑADIR INGRE/PASO
+    document.getElementById("add-ingrediente").onclick = () => addIngrediente();
+    document.getElementById("add-paso").onclick = () => addPaso();
+
+    // SUBMIT
+    form.addEventListener("submit", async e => {
       e.preventDefault();
-      const form = e.target;
 
-      const titulo = form.titulo.value.trim();
-      const descripcion = form.descripcion.value.trim();
-      const tipo = form.tipo.value;
-      const dificultad = form.dificultad.value;
-      const duracion = Number(form.duracion.value);
-      const presupuestoPorPorcion = Number(form.presupuestoPorPorcion.value);
+      // payload general
+      const payload = {
+        titulo: form.titulo.value.trim(),
+        descripcion: form.descripcion.value.trim(),
+        tipo: form.tipo.value,
+        dificultad: form.dificultad.value,
+        duracion: Number(form.duracion.value),
+        presupuestoPorPorcion: Number(form.presupuestoPorPorcion.value),
+        imagenes: [],
+        ingredientes: [],
+        pasos: []
+      };
 
       // imágenes
-      const imagenes = [];
-      for (let i=0;i<3;i++){
-        const val = form[`imagen-${i}`].value.trim();
-        if (val) imagenes.push(val);
+      for (let i=0; i<3; i++) {
+        const v = form[`imagen-${i}`].value.trim();
+        if (v) payload.imagenes.push(v);
       }
 
       // ingredientes
-      const ingredientes = Array.from(ingredientesRoot.children).map(w => {
-        const nombre = w.querySelector('[data-role="ing-nombre"]').value.trim();
-        const cantidad = w.querySelector('[data-role="ing-cantidad"]').value.trim();
-        const costo = Number(w.querySelector('[data-role="ing-costo"]').value) || 0;
-        return { nombre, cantidad, costo };
-      }).filter(i => i.nombre);
+      payload.ingredientes = Array.from(ingredientesRoot.children).map(w => ({
+        nombre: w.querySelector("[data-role=ing-nombre]").value.trim(),
+        cantidad: w.querySelector("[data-role=ing-cantidad]").value.trim(),
+        costo: Number(w.querySelector("[data-role=ing-costo]").value)
+      })).filter(i => i.nombre);
 
       // pasos
-      const pasos = Array.from(pasosRoot.children).map(w => {
-        const texto = w.querySelector('textarea').value.trim();
-        return { paso: texto };
-      }).filter(p => p.paso);
-
-      const payload = {
-        titulo, descripcion, tipo, dificultad, duracion, presupuestoPorPorcion,
-        imagenes, ingredientes, pasos
-      };
+      payload.pasos = Array.from(pasosRoot.children)
+        .map(w => w.querySelector("textarea").value.trim())
+        .filter(p => p);
 
       try {
-        const res = await recetasService.create(token, payload);
-        if (res && res.receta) {
-          alert('Receta creada');
-          window.location.href = `/pages/receta-view.html?id=${res.receta._id}`;
+        let res;
+
+        if (recetaId) {
+          // EDITAR
+          res = await recetasService.update(token, recetaId, payload);
+          alert("Receta actualizada");
+          window.location.href = `/pages/receta-view.html?id=${recetaId}`;
         } else {
-          alert('Error al crear la receta');
-          console.error(res);
+          // CREAR (fallback)
+          res = await recetasService.create(token, payload);
+          alert("Receta creada");
+          window.location.href = `/pages/receta-view.html?id=${res.receta._id}`;
         }
+
       } catch (err) {
         console.error(err);
-        alert('Ocurrió un error creando la receta');
+        alert("Error guardando receta");
       }
     });
   </script>
+
 </body>
 </html>
