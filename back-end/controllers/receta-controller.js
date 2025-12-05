@@ -71,16 +71,11 @@ exports.createRecetaDerivada = async (req, res) => {
 // Obtener todas las recetas (listado)
 exports.getRecetas = async (req, res) => {
     try {
+        // Puedes añadir paginación/limit/skip en el futuro
         const recetas = await Receta.find()
-            .populate({
-                path: "autor",
-                select: "username profileImage",
-                model: "Usuario"
-            })
+            .populate("autor", "username profileImage")
             .select("-__v");
-
         res.json(recetas);
-
     } catch (error) {
         console.error("ERROR getRecetas:", error);
         res.status(500).json({ message: "Error al obtener recetas" });
@@ -91,25 +86,15 @@ exports.getRecetas = async (req, res) => {
 exports.getRecetaById = async (req, res) => {
     try {
         const receta = await Receta.findById(req.params.id)
-            .populate({
-                path: "autor",
-                select: "username profileImage",
-                model: "Usuario"
-            })
-            .populate({
-                path: "comentarios.usuario",
-                select: "username profileImage",
-                model: "Usuario"
-            })
-            .populate({
-                path: "derivadaDe",
-                select: "titulo autor"
-            });
+            .populate("autor", "username profileImage")
+            .populate("comentarios.usuario", "username profileImage")
+            .populate("derivadaDe", "titulo autor");
 
         if (!receta)
             return res.status(404).json({ message: "Receta no encontrada" });
 
         res.json(receta);
+
     } catch (error) {
         console.error("ERROR getRecetaById:", error);
         res.status(500).json({ message: "Error al obtener la receta" });
@@ -127,6 +112,7 @@ exports.updateReceta = async (req, res) => {
         if (receta.autor.toString() !== req.user.id)
             return res.status(403).json({ message: "No puedes editar esta receta" });
 
+        // Proteger campos que no deben editar los usuarios
         const camposNoEditables = ["autor", "validada", "derivadaDe", "_id"];
         camposNoEditables.forEach(campo => {
             if (req.body.hasOwnProperty(campo)) delete req.body[campo];
@@ -274,11 +260,7 @@ exports.buscar = async (req, res) => {
         if (ingrediente) filtros["ingredientes.nombre"] = { $regex: ingrediente, $options: "i" };
 
         const recetas = await Receta.find(filtros)
-            .populate({
-                path: "autor",
-                select: "username profileImage",
-                model: "Usuario"    // ← FIX
-            })
+            .populate("autor", "username profileImage")
             .select("-__v");
 
         res.json(recetas);
@@ -292,14 +274,11 @@ exports.buscar = async (req, res) => {
 // Recomendaciones
 exports.recomendar = async (req, res) => {
     try {
+        // Recomendamos recetas validadas, ordenadas por promedio y limit 5
         const recetas = await Receta.find({ validada: true })
             .sort({ promedio: -1 })
             .limit(5)
-            .populate({
-                path: "autor",
-                select: "username profileImage",
-                model: "Usuario"
-            });
+            .populate("autor", "username profileImage");
 
         res.json(recetas);
 

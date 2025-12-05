@@ -3,14 +3,7 @@
 const comentarioService = {
   listarPorReceta: async (id) => {
     const receta = await recetasService.getById(id);
-
-    const comentarios = (receta?.comentarios || []).map(c => ({
-      usuario: c.usuario?.username || "Usuario",
-      texto: c.comentario || "(sin texto)",
-      fecha: c.fecha || c.createdAt || new Date().toISOString()
-    }));
-
-    return comentarios;
+    return receta?.comentarios || [];
   },
 
   crear: (token, id, texto) =>
